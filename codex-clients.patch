@@ -53,7 +53,7 @@ index 103faa567626dc65d1f637501a8d6be7b33b4f84..0fa1075fa8f8ad19aa4f789602d76b2a
        <main className="flex-1 overflow-y-auto">
          <header className="flex items-center justify-between p-6 sticky top-0 bg-cream/90 backdrop-blur border-b border-cream/80">
            <div>
-             <p className="text-xs uppercase text-coffee/60 font-semibold">Hedelmiá POS</p>
+             <p className="text-xs uppercase text-coffee/60 font-semibold">Helatte POS</p>
              <h1 className="text-2xl font-bold">{titles[view]}</h1>
            </div>
            <div className="px-4 py-2 rounded-lg bg-white shadow-card text-sm">Modo offline / localStorage</div>
@@ -176,14 +176,14 @@ index 1216a76e7bfb4f64d2dd6e64114945b468145c0c..762bbd4f6d3ebe1dc012dc779f4fba0e
  };
  
  const PosContext = createContext<PosContextValue | null>(null);
- const PRODUCTS_KEY = 'hedelmia_products';
- const SALES_KEY = 'hedelmia_sales';
- const FINANCE_KEY = 'hedelmia_finance';
- const CLIENTS_KEY = 'hedelmia_clients';
- const CREDITS_KEY = 'hedelmia_credits';
- const FRIDGES_KEY = 'hedelmia_fridge_loans';
- const RAW_MATERIALS_KEY = 'hedelmia_raw_materials';
- const RAW_MATERIAL_MOVEMENTS_KEY = 'hedelmia_raw_material_movements';
+ const PRODUCTS_KEY = 'helatte_products';
+ const SALES_KEY = 'helatte_sales';
+ const FINANCE_KEY = 'helatte_finance';
+ const CLIENTS_KEY = 'helatte_clients';
+ const CREDITS_KEY = 'helatte_credits';
+ const FRIDGES_KEY = 'helatte_fridge_loans';
+ const RAW_MATERIALS_KEY = 'helatte_raw_materials';
+ const RAW_MATERIAL_MOVEMENTS_KEY = 'helatte_raw_material_movements';
  
  function generateId() {
    return typeof crypto !== 'undefined' && 'randomUUID' in crypto

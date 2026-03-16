@@ -130,15 +130,15 @@ type PosContextValue = {
 };
 
 const PosContext = createContext<PosContextValue | null>(null);
-const PRODUCTS_KEY = 'hedelmia_products';
-const SALES_KEY = 'hedelmia_sales';
-const FINANCE_KEY = 'hedelmia_finance';
-const CLIENTS_KEY = 'hedelmia_clients';
-const CREDITS_KEY = 'hedelmia_credits';
-const FRIDGES_KEY = 'hedelmia_fridge_loans';
-const RAW_MATERIALS_KEY = 'hedelmia_raw_materials';
-const RAW_MATERIAL_MOVEMENTS_KEY = 'hedelmia_raw_material_movements';
-const WHOLESALE_FOLIO_KEY = 'hedelmia_wholesale_folio';
+const PRODUCTS_KEY = 'helatte_products';
+const SALES_KEY = 'helatte_sales';
+const FINANCE_KEY = 'helatte_finance';
+const CLIENTS_KEY = 'helatte_clients';
+const CREDITS_KEY = 'helatte_credits';
+const FRIDGES_KEY = 'helatte_fridge_loans';
+const RAW_MATERIALS_KEY = 'helatte_raw_materials';
+const RAW_MATERIAL_MOVEMENTS_KEY = 'helatte_raw_material_movements';
+const WHOLESALE_FOLIO_KEY = 'helatte_wholesale_folio';
 
 function generateId() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto

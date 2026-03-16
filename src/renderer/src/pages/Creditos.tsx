@@ -4,7 +4,7 @@ import { useClientesContext } from '../state/ClientesContext';
 
 type PagareConAbonos = PromissoryNote & { abonos?: PromissoryPayment[] };
 
-const hedelmia = window.hedelmia;
+const helatte = window.helatte;
 
 export default function Creditos() {
   const { clientes, cargando: cargandoClientes, cargarClientes, error: errorClientes } = useClientesContext();
@@ -26,7 +26,7 @@ export default function Creditos() {
     setCargandoPagares(true);
     setError('');
     try {
-      const data = await hedelmia.listarPagaresPorCliente(clienteId);
+      const data = await helatte.listarPagaresPorCliente(clienteId);
       setPagares(data);
       if (!pagareSeleccionado && data.length > 0) {
         setPagareSeleccionado(data[0]);
@@ -112,7 +112,7 @@ export default function Creditos() {
     setError('');
     setMensaje('');
     try {
-      await hedelmia.crearPagare({ customerId: clienteSeleccionado.id, monto: montoNumero });
+      await helatte.crearPagare({ customerId: clienteSeleccionado.id, monto: montoNumero });
       setMensaje('Pagaré generado correctamente.');
       cerrarModal();
       await Promise.all([cargarPagares(clienteSeleccionado.id), cargarClientes()]);
@@ -149,7 +149,7 @@ export default function Creditos() {
     setError('');
     setMensaje('');
     try {
-      const resultado = await hedelmia.registrarAbonoPagare({
+      const resultado = await helatte.registrarAbonoPagare({
         promissoryNoteId: pagareParaAbono.id,
         monto: montoNumero
       });

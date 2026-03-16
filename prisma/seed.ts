@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'file:./prisma/hedelmia.db';
+process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'file:./prisma/helatte.db';
 const prisma = new PrismaClient();
 
 const daysAgo = (dias: number) => {
@@ -134,7 +134,7 @@ async function main() {
 
   const admin = await prisma.user.create({
     data: {
-      email: 'admin@hedelmia.local',
+      email: 'admin@helatte.local',
       nombre: 'Admin',
       password: 'admin123',
       role: 'ADMIN'
@@ -143,7 +143,7 @@ async function main() {
 
   const cajero = await prisma.user.create({
     data: {
-      email: 'cajero@hedelmia.local',
+      email: 'cajero@helatte.local',
       nombre: 'Cajero principal',
       password: 'cajero123',
       role: 'CAJERO'

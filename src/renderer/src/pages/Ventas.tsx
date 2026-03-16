@@ -18,7 +18,7 @@ export default function Ventas() {
   const cargarCatalogo = async () => {
     setCargando(true);
     try {
-      const data = await window.hedelmia.listarCatalogo();
+      const data = await window.helatte.listarCatalogo();
       setProductos(data.productos);
       setSabores(data.sabores);
     } finally {
@@ -29,7 +29,7 @@ export default function Ventas() {
   const cargarClientes = async () => {
     setCargandoClientes(true);
     try {
-      const data = await window.hedelmia.listarClientes();
+      const data = await window.helatte.listarClientes();
       setClientes(data);
     } finally {
       setCargandoClientes(false);
@@ -97,7 +97,7 @@ export default function Ventas() {
         return;
       }
 
-      await window.hedelmia.ventaPOS({
+      await window.helatte.ventaPOS({
         items: carrito.map((item) => ({ productId: item.id, cantidad: item.qty })),
         customerId: clienteId ? Number(clienteId) : undefined
       });

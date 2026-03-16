@@ -1,10 +1,10 @@
 {
-  "name": "Hedelmiá POS",
-  "short_name": "Hedelmiá",
+  "name": "Helatte POS",
+  "short_name": "Helatte",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f2e8",
-  "theme_color": "#f7f2e8",
+  "background_color": "#F3EFF2",
+  "theme_color": "#F3EFF2",
   "icons": [
     {
       "src": "/icons/icon-192.png",

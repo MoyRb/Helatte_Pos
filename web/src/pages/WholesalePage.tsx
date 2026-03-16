@@ -382,7 +382,7 @@ export const WholesalePage: React.FC = () => {
          <div className="card p-4 space-y-4" id="wholesale-ticket">
            <div className="flex items-center justify-between">
              <div>
-               <p className="text-xs uppercase text-coffee/60 font-semibold">Hedelmiá POS</p>
+               <p className="text-xs uppercase text-coffee/60 font-semibold">Helatte POS</p>
                <h3 className="text-lg font-semibold">Ticket Venta Mayoreo</h3>
                {ticketSale?.folio && <p className="text-sm text-coffee/70">Folio: {ticketSale.folio}</p>}
              </div>

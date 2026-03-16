@@ -5,13 +5,13 @@ index 35aef9bd078de2bd1adbf5e7a6b9c380c98886d6..54d65097748fa5fc34dc3131c233a574
 +++ b/web/package-lock.json
 @@ -1,38 +1,39 @@
  {
-   "name": "hedelmia-pos-web",
+   "name": "helatte-pos-web",
    "version": "1.0.0",
    "lockfileVersion": 3,
    "requires": true,
    "packages": {
      "": {
-       "name": "hedelmia-pos-web",
+       "name": "helatte-pos-web",
        "version": "1.0.0",
        "dependencies": {
          "@heroicons/react": "^2.2.0",
@@ -1081,7 +1081,7 @@ index f8c19a1a1ff5feecbb5ad6c7f7ad4d97d357353b..5bbc68d0ae286a5fbb969f80c7a86125
 +++ b/web/package.json
 @@ -1,28 +1,29 @@
  {
-   "name": "hedelmia-pos-web",
+   "name": "helatte-pos-web",
    "version": "1.0.0",
    "private": true,
    "type": "module",

@@ -4,7 +4,7 @@ import fs from 'fs'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 
-console.log('[main] Hedelmía POS main process starting')
+console.log('[main] Helatte POS main process starting')
 
 /* =========================================================
    ESM PATHS + CommonJS bridge (NECESARIO)
@@ -68,7 +68,7 @@ async function getDefaultUserId(prismaClient: PrismaClient): Promise<number> {
 
   const created = await prismaClient.user.create({
     data: {
-      email: 'cajero@hedelmia.local',
+      email: 'cajero@helatte.local',
       nombre: 'Cajero',
       password: 'changeme',
       role: 'CAJERO'
@@ -157,11 +157,11 @@ if (!isDev) {
 /* =========================================================
    DATABASE SETUP (SQLite portable)
 ========================================================= */
-const dbPath = path.join(app.getPath('userData'), 'hedelmia.db')
+const dbPath = path.join(app.getPath('userData'), 'helatte.db')
 
 const templateDbPath = isDev
-  ? path.join(__dirname, '../../prisma/hedelmia.db')
-  : path.join(process.resourcesPath, 'prisma', 'hedelmia.db')
+  ? path.join(__dirname, '../../prisma/helatte.db')
+  : path.join(process.resourcesPath, 'prisma', 'helatte.db')
 
 if (!fs.existsSync(dbPath)) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
@@ -383,7 +383,7 @@ const createWindow = async (): Promise<BrowserWindow> => {
     const win = new BrowserWindow({
     width: 1280,
     height: 800,
-    backgroundColor: '#fcf2e4',
+    backgroundColor: '#FFF6FA',
     show: false,
     webPreferences: {
       preload: preloadPath,

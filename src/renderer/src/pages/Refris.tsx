@@ -18,7 +18,7 @@ export default function Refris() {
   const cargarRefris = async () => {
     setCargando(true);
     try {
-      const data = await window.hedelmia.listarRefris();
+      const data = await window.helatte.listarRefris();
       setRefris(data);
     } finally {
       setCargando(false);
@@ -66,10 +66,10 @@ export default function Refris() {
 
     try {
       if (editando) {
-        await window.hedelmia.actualizarRefri({ id: editando.id, modelo, serie, estado: form.estado });
+        await window.helatte.actualizarRefri({ id: editando.id, modelo, serie, estado: form.estado });
         setMensaje('Refri actualizado correctamente.');
       } else {
-        await window.hedelmia.crearRefri({ modelo, serie, estado: form.estado });
+        await window.helatte.crearRefri({ modelo, serie, estado: form.estado });
         setMensaje('Refri creado correctamente.');
       }
       cerrarModal();
@@ -86,7 +86,7 @@ export default function Refris() {
     setError('');
     setMensaje('');
     try {
-      const actualizado = await window.hedelmia.toggleRefriEstado({ id: refri.id });
+      const actualizado = await window.helatte.toggleRefriEstado({ id: refri.id });
       setRefris((prev) => prev.map((r) => (r.id === actualizado.id ? actualizado : r)));
     } catch (err) {
       console.error(err);
