@@ -94,7 +94,21 @@ async function ensureDefaultCashBoxes(prismaClient: PrismaClient) {
    APP CONFIG
 ========================================================= */
 const isDev = !app.isPackaged
-const devServerUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://localhost:5173'
+
+const DEFAULT_DEV_SERVER_URL = 'http://localhost:5173'
+
+const resolveDevServerUrl = () => {
+  const fromEnv = process.env.VITE_DEV_SERVER_URL?.trim()
+  if (!fromEnv) return DEFAULT_DEV_SERVER_URL
+
+  if (/^https?:\/\//i.test(fromEnv)) {
+    return fromEnv
+  }
+
+  return DEFAULT_DEV_SERVER_URL
+}
+
+const devServerUrl = resolveDevServerUrl()
 
 process.on('unhandledRejection', (reason) => {
   console.error('[main] unhandledRejection', reason)
@@ -409,6 +423,7 @@ const createWindow = async (): Promise<BrowserWindow> => {
 
   if (isDev) {
     try {
+      console.info('[renderer] Loading dev server URL', { devServerUrl })
       await win.loadURL(devServerUrl)
     } catch (error) {
       console.error('[renderer] loadURL failed', error)
