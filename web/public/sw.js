@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hedelmia-pos-cache-v1';
+const CACHE_NAME = 'helatte-pos-cache-v1';
 const OFFLINE_URLS = ['/'];
 
 self.addEventListener('install', (event) => {

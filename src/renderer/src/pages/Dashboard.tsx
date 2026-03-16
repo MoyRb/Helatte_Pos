@@ -3,7 +3,7 @@ import { RefreshCcw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { DashboardSummary } from '../../../preload';
 
-const pastel = ['#f8c4a4', '#efe6c6', '#dec3cd', '#f0f0b7'];
+const pastel = ['#F72585', '#FFD6E7', '#111111', '#FF5FA2'];
 
 const money = (value: number) =>
   value.toLocaleString('es-MX', {
@@ -22,9 +22,9 @@ export default function Dashboard() {
     setCargando(true);
 
     const [kpisResult, tablasResult, graficasResult] = await Promise.allSettled([
-      window.hedelmia.obtenerDashboard().then((res) => res.kpis),
-      window.hedelmia.obtenerDashboard().then((res) => res.tablas),
-      window.hedelmia.obtenerDashboard().then((res) => res.graficas)
+      window.helatte.obtenerDashboard().then((res) => res.kpis),
+      window.helatte.obtenerDashboard().then((res) => res.tablas),
+      window.helatte.obtenerDashboard().then((res) => res.graficas)
     ]);
 
     setKpis((prev) => (kpisResult.status === 'fulfilled' ? kpisResult.value : prev));
@@ -81,8 +81,8 @@ export default function Dashboard() {
                   <YAxis />
                   <Tooltip formatter={(value: number) => money(value)} />
                   <Legend />
-                  <Bar dataKey="ingresos" name="Ingresos" fill="#f8c4a4" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="egresos" name="Egresos" fill="#dec3cd" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="ingresos" name="Ingresos" fill="#F72585" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="egresos" name="Egresos" fill="#111111" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

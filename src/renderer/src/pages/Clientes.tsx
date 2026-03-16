@@ -20,7 +20,7 @@ const emptyForm: ClienteForm = {
   estado: 'activo'
 };
 
-const hedelmia = window.hedelmia;
+const helatte = window.helatte;
 
 export default function Clientes() {
   const { clientes, cargando, cargarClientes, error: errorClientes, limpiarError } = useClientesContext();
@@ -53,7 +53,7 @@ export default function Clientes() {
   const cargarAsignacionesCliente = async (clienteId: number) => {
     setCargandoAsignaciones(true);
     try {
-      const data = await hedelmia.listarAsignacionesCliente(clienteId);
+      const data = await helatte.listarAsignacionesCliente(clienteId);
       setAsignaciones(data);
     } finally {
       setCargandoAsignaciones(false);
@@ -62,7 +62,7 @@ export default function Clientes() {
 
   const cargarRefrisDisponibles = async () => {
     try {
-      const disponibles = await hedelmia.listarRefrisDisponibles();
+      const disponibles = await helatte.listarRefrisDisponibles();
       setRefrisDisponibles(disponibles);
       setFormAsignacion((f) => ({
         ...f,
@@ -142,7 +142,7 @@ export default function Clientes() {
     setMensaje('');
     try {
       if (editando) {
-        await hedelmia.actualizarCliente({
+        await helatte.actualizarCliente({
           id: editando.id,
           nombre: form.nombre.trim(),
           telefono: form.telefono.trim() || undefined,
@@ -151,7 +151,7 @@ export default function Clientes() {
           estado: form.estado
         });
       } else {
-        await hedelmia.crearCliente({
+        await helatte.crearCliente({
           nombre: form.nombre.trim(),
           telefono: form.telefono.trim() || undefined,
           limite,
@@ -193,7 +193,7 @@ export default function Clientes() {
     try {
       const deposito = formAsignacion.deposito.trim() ? parseFloat(formAsignacion.deposito) : undefined;
       const renta = formAsignacion.renta.trim() ? parseFloat(formAsignacion.renta) : undefined;
-      const nuevaAsignacion = await hedelmia.crearAsignacionRefri({
+      const nuevaAsignacion = await helatte.crearAsignacionRefri({
         customerId: editando.id,
         assetId: parseInt(formAsignacion.assetId, 10),
         ubicacion: formAsignacion.ubicacion.trim(),
@@ -222,7 +222,7 @@ export default function Clientes() {
     setEliminandoAsignacionId(id);
     setError('');
     try {
-      await hedelmia.eliminarAsignacionRefri(id);
+      await helatte.eliminarAsignacionRefri(id);
       if (editando) {
         await cargarAsignacionesCliente(editando.id);
       } else {
@@ -251,7 +251,7 @@ export default function Clientes() {
     const nuevoEstado = cliente.estado === 'activo' ? 'inactivo' : 'activo';
     setError('');
     try {
-      await hedelmia.toggleClienteEstado({ id: cliente.id, estado: nuevoEstado });
+      await helatte.toggleClienteEstado({ id: cliente.id, estado: nuevoEstado });
       await cargarClientes();
     } catch (err) {
       console.error(err);

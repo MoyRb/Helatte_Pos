@@ -261,10 +261,10 @@ const api = {
     ipcRenderer.invoke('inventario:movimientoProducto', data) as Promise<Product>
 } as const;
 
-contextBridge.exposeInMainWorld('hedelmia', api);
+contextBridge.exposeInMainWorld('helatte', api);
 
 declare global {
   interface Window {
-    hedelmia: typeof api;
+    helatte: typeof api;
   }
 }

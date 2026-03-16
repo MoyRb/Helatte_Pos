@@ -143,6 +143,6 @@ export function exportPosDataToExcel(data: ExportPayload) {
     }));
   appendSheet(workbook, cashBigRows, 'MovimientosCajaGrande', ['tipo', 'monto', 'concepto', 'fecha']);
 
-  const fileName = `hedelmia-pos-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const fileName = `helatte-pos-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(workbook, fileName);
 }

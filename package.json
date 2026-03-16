@@ -1,8 +1,8 @@
 {
-  "name": "hedelmia-pos",
+  "name": "helatte-pos",
   "version": "0.1.0",
-  "description": "Hedelmía POS",
-  "author": "Hedelmia",
+  "description": "Helatte POS",
+  "author": "Helatte",
   "main": "dist/main/index.js",
   "type": "module",
   "scripts": {
@@ -38,8 +38,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "build": {
-    "appId": "com.hedelmia.pos",
-    "productName": "Hedelmía POS",
+    "appId": "com.helatte.pos",
+    "productName": "Helatte POS",
     "asar": true,
     "files": [
       "dist/**/*",
@@ -55,8 +55,8 @@
         "to": "node_modules/.prisma"
       },
       {
-        "from": "prisma/hedelmia.db",
-        "to": "prisma/hedelmia.db"
+        "from": "prisma/helatte.db",
+        "to": "prisma/helatte.db"
       }
     ],
     "win": {

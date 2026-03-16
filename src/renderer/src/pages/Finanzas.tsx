@@ -32,7 +32,7 @@ export default function Finanzas() {
     try {
       setError(null);
       setCargando(true);
-      const data = await window.hedelmia.listarCajas();
+      const data = await window.helatte.listarCajas();
       setCajas((data ?? []) as CashBox[]);
     } catch (e: any) {
       console.error('Error cargando cajas:', e);
@@ -77,7 +77,7 @@ export default function Finanzas() {
     try {
       setError(null);
 
-      await window.hedelmia.crearMovimiento({
+      await window.helatte.crearMovimiento({
         cashBoxId: cajaActual.id,
         tipo,
         concepto: form.concepto.trim(),

@@ -55,7 +55,7 @@ index 07676a8f282cfade3723e02e881fe19404be04ba..f8db7825e0f98d6ec17e5c09306b609f
 -        <header className="flex items-center justify-between p-6 sticky top-0 bg-cream/90 backdrop-blur border-b border-cream/80">
 +        <header className="flex items-center justify-between p-6 sticky top-0 bg-cream/90 backdrop-blur border-b border-cream/80 no-print">
            <div>
-             <p className="text-xs uppercase text-coffee/60 font-semibold">Hedelmiá POS</p>
+             <p className="text-xs uppercase text-coffee/60 font-semibold">Helatte POS</p>
              <h1 className="text-2xl font-bold">{titles[view]}</h1>
            </div>
            <div className="flex items-center gap-3">
@@ -122,7 +122,7 @@ index 1dd407a96477785727282749a37e7adaa1be4d48..0f6be5b231e60eb26828e9c55f5a6e98
            HP
          </div>
          <div>
-           <p className="text-lg font-semibold">Hedelmiá POS</p>
+           <p className="text-lg font-semibold">Helatte POS</p>
            <p className="text-sm text-coffee/70">Sucursal única</p>
          </div>
        </div>
@@ -278,15 +278,15 @@ index d0d269dd14fb5830276d71ceecfdf3441d2da91a..9bcccb516b3788b048503ca7b39c1155
  };
  
  const PosContext = createContext<PosContextValue | null>(null);
- const PRODUCTS_KEY = 'hedelmia_products';
- const SALES_KEY = 'hedelmia_sales';
- const FINANCE_KEY = 'hedelmia_finance';
- const CLIENTS_KEY = 'hedelmia_clients';
- const CREDITS_KEY = 'hedelmia_credits';
- const FRIDGES_KEY = 'hedelmia_fridge_loans';
- const RAW_MATERIALS_KEY = 'hedelmia_raw_materials';
- const RAW_MATERIAL_MOVEMENTS_KEY = 'hedelmia_raw_material_movements';
-+const WHOLESALE_FOLIO_KEY = 'hedelmia_wholesale_folio';
+ const PRODUCTS_KEY = 'helatte_products';
+ const SALES_KEY = 'helatte_sales';
+ const FINANCE_KEY = 'helatte_finance';
+ const CLIENTS_KEY = 'helatte_clients';
+ const CREDITS_KEY = 'helatte_credits';
+ const FRIDGES_KEY = 'helatte_fridge_loans';
+ const RAW_MATERIALS_KEY = 'helatte_raw_materials';
+ const RAW_MATERIAL_MOVEMENTS_KEY = 'helatte_raw_material_movements';
++const WHOLESALE_FOLIO_KEY = 'helatte_wholesale_folio';
  
  function generateId() {
    return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -1128,7 +1128,7 @@ index 0000000000000000000000000000000000000000..693669bcd49a8585b172267acda29ded
 +         <div className="card p-4 space-y-4" id="wholesale-ticket">
 +           <div className="flex items-center justify-between">
 +             <div>
-+               <p className="text-xs uppercase text-coffee/60 font-semibold">Hedelmiá POS</p>
++               <p className="text-xs uppercase text-coffee/60 font-semibold">Helatte POS</p>
 +               <h3 className="text-lg font-semibold">Ticket Venta Mayoreo</h3>
 +               {ticketSale?.folio && <p className="text-sm text-coffee/70">Folio: {ticketSale.folio}</p>}
 +             </div>

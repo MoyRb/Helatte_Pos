@@ -1,4 +1,4 @@
-const FINANCE_PIN_HASH_KEY = 'hedelmia_finance_pin_hash';
+const FINANCE_PIN_HASH_KEY = 'helatte_finance_pin_hash';
 
 export const getFinancePinHash = () => localStorage.getItem(FINANCE_PIN_HASH_KEY);
 

@@ -260,14 +260,14 @@ index 762bbd4f6d3ebe1dc012dc779f4fba0ea7a50e2b..d0d269dd14fb5830276d71ceecfdf344
  };
  
  const PosContext = createContext<PosContextValue | null>(null);
- const PRODUCTS_KEY = 'hedelmia_products';
- const SALES_KEY = 'hedelmia_sales';
- const FINANCE_KEY = 'hedelmia_finance';
- const CLIENTS_KEY = 'hedelmia_clients';
- const CREDITS_KEY = 'hedelmia_credits';
- const FRIDGES_KEY = 'hedelmia_fridge_loans';
- const RAW_MATERIALS_KEY = 'hedelmia_raw_materials';
- const RAW_MATERIAL_MOVEMENTS_KEY = 'hedelmia_raw_material_movements';
+ const PRODUCTS_KEY = 'helatte_products';
+ const SALES_KEY = 'helatte_sales';
+ const FINANCE_KEY = 'helatte_finance';
+ const CLIENTS_KEY = 'helatte_clients';
+ const CREDITS_KEY = 'helatte_credits';
+ const FRIDGES_KEY = 'helatte_fridge_loans';
+ const RAW_MATERIALS_KEY = 'helatte_raw_materials';
+ const RAW_MATERIAL_MOVEMENTS_KEY = 'helatte_raw_material_movements';
  
  function generateId() {
    return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -661,7 +661,7 @@ index 0000000000000000000000000000000000000000..70b06363f75be4c6349c64a98b77ec2d
 --- /dev/null
 +++ b/web/src/utils/financePin.ts
 @@ -0,0 +1,23 @@
-+const FINANCE_PIN_HASH_KEY = 'hedelmia_finance_pin_hash';
++const FINANCE_PIN_HASH_KEY = 'helatte_finance_pin_hash';
 +
 +export const getFinancePinHash = () => localStorage.getItem(FINANCE_PIN_HASH_KEY);
 +

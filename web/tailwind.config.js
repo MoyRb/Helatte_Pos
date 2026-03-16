@@ -4,11 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream: '#f7f2e8',
-        mint: '#7ed6c1',
-        blush: '#f3c7d5',
-        coffee: '#4a3b35',
-        accent: '#2e8b7d',
+        cream: '#FFF6FA',
+        mint: '#F72585',
+        blush: '#FFD6E7',
+        coffee: '#111111',
+        accent: '#FF5FA2',
       },
       boxShadow: {
         card: '0 10px 25px rgba(0, 0, 0, 0.08)',

@@ -29,7 +29,7 @@ export default function App() {
         <div className="flex items-center gap-3 mb-6">
           <div className="h-10 w-10 rounded-full bg-primary shadow-inner" />
           <div>
-            <p className="font-semibold text-lg">Hedelmiá POS</p>
+            <p className="font-semibold text-lg">Helatte POS</p>
             <p className="text-sm text-gray-600">Nevería &amp; Paletería</p>
           </div>
         </div>
@@ -50,7 +50,7 @@ export default function App() {
             );
           })}
         </nav>
-        <p className="text-xs text-gray-500">© {year} Hedelmiá</p>
+        <p className="text-xs text-gray-500">© {year} Helatte</p>
       </aside>
       <main className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-surface to-background">
         <Routes>

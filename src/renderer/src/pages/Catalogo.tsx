@@ -53,7 +53,7 @@ export default function Catalogo() {
     try {
       setError(null);
       setCargando(true);
-      const data = await window.hedelmia.listarCatalogo();
+      const data = await window.helatte.listarCatalogo();
       setSabores(data.sabores ?? []);
       setProductos(data.productos ?? []);
       setTipos(data.tipos ?? []);
@@ -98,9 +98,9 @@ export default function Catalogo() {
     try {
       setError(null);
       if (editTipoId) {
-        await window.hedelmia.actualizarTipo({ id: editTipoId, nombre: nuevoTipo.nombre.trim(), activo: nuevoTipo.activo });
+        await window.helatte.actualizarTipo({ id: editTipoId, nombre: nuevoTipo.nombre.trim(), activo: nuevoTipo.activo });
       } else {
-        await window.hedelmia.crearTipo({ nombre: nuevoTipo.nombre.trim(), activo: nuevoTipo.activo });
+        await window.helatte.crearTipo({ nombre: nuevoTipo.nombre.trim(), activo: nuevoTipo.activo });
       }
       setMostrarTipo(false);
       setEditTipoId(null);
@@ -114,7 +114,7 @@ export default function Catalogo() {
   const toggleTipo = async (t: ProductType) => {
     try {
       setError(null);
-      await window.hedelmia.toggleTipo({ id: t.id, activo: !t.activo });
+      await window.helatte.toggleTipo({ id: t.id, activo: !t.activo });
       await cargarCatalogo();
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -139,14 +139,14 @@ export default function Catalogo() {
     try {
       setError(null);
       if (editSaborId) {
-        await window.hedelmia.actualizarSabor({
+        await window.helatte.actualizarSabor({
           id: editSaborId,
           nombre: nuevoSabor.nombre.trim(),
           color: nuevoSabor.color ? nuevoSabor.color : null,
           activo: nuevoSabor.activo
         });
       } else {
-        await window.hedelmia.crearSabor({
+        await window.helatte.crearSabor({
           nombre: nuevoSabor.nombre.trim(),
           color: nuevoSabor.color || undefined,
           activo: nuevoSabor.activo
@@ -164,7 +164,7 @@ export default function Catalogo() {
   const toggleSabor = async (s: Flavor) => {
     try {
       setError(null);
-      await window.hedelmia.toggleSabor({ id: s.id, activo: !s.activo });
+      await window.helatte.toggleSabor({ id: s.id, activo: !s.activo });
       await cargarCatalogo();
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -210,10 +210,10 @@ export default function Catalogo() {
     try {
       setError(null);
       if (editProductoId) {
-        await window.hedelmia.actualizarProducto({ id: editProductoId, ...payload });
+        await window.helatte.actualizarProducto({ id: editProductoId, ...payload });
       } else {
         // crearProducto acepta sku?: string y stock?: number; activo?: boolean (según tu preload)
-        await window.hedelmia.crearProducto({
+        await window.helatte.crearProducto({
           ...payload,
           sku: payload.sku ?? undefined
         });
@@ -230,7 +230,7 @@ export default function Catalogo() {
   const toggleProducto = async (p: Product) => {
     try {
       setError(null);
-      await window.hedelmia.toggleProducto({ id: p.id, activo: !p.activo });
+      await window.helatte.toggleProducto({ id: p.id, activo: !p.activo });
       await cargarCatalogo();
     } catch (e: any) {
       setError(e?.message ?? String(e));

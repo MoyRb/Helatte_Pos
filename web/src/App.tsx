@@ -48,7 +48,7 @@ const AppContent: React.FC = () => {
       <main className="flex-1 overflow-y-auto">
         <header className="flex items-center justify-between p-6 sticky top-0 bg-cream/90 backdrop-blur border-b border-cream/80 no-print">
           <div>
-            <p className="text-xs uppercase text-coffee/60 font-semibold">Hedelmiá POS</p>
+            <p className="text-xs uppercase text-coffee/60 font-semibold">Helatte POS</p>
             <h1 className="text-2xl font-bold">{titles[view]}</h1>
           </div>
           <div className="flex items-center gap-3">

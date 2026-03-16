@@ -88,8 +88,8 @@ export default function Inventario() {
     try {
       setLoading(true);
       const [materiasResp, productosResp] = await Promise.all([
-        window.hedelmia.listarMaterias(),
-        window.hedelmia.listarProductosStock()
+        window.helatte.listarMaterias(),
+        window.helatte.listarProductosStock()
       ]);
 
       setMaterias(materiasResp.materias ?? []);
@@ -111,7 +111,7 @@ export default function Inventario() {
     if (!nuevoMaterial.nombre || !nuevoMaterial.unidadId) return;
     try {
       setSaving(true);
-      const creado = await window.hedelmia.crearMateria({
+      const creado = await window.helatte.crearMateria({
         nombre: nuevoMaterial.nombre,
         unidadId: Number(nuevoMaterial.unidadId),
         stock: Number(nuevoMaterial.stock) || 0,
@@ -131,7 +131,7 @@ export default function Inventario() {
     if (!movMaterial.materialId) return;
     try {
       setSaving(true);
-      const actualizado = await window.hedelmia.movimientoMateria({
+      const actualizado = await window.helatte.movimientoMateria({
         materialId: movMaterial.materialId,
         tipo: movMaterial.tipo,
         cantidad: Number(movMaterial.cantidad),
@@ -151,7 +151,7 @@ export default function Inventario() {
     if (!movProducto.productId) return;
     try {
       setSaving(true);
-      const actualizado = await window.hedelmia.movimientoProducto({
+      const actualizado = await window.helatte.movimientoProducto({
         productId: movProducto.productId,
         tipo: movProducto.tipo,
         cantidad: Number(movProducto.cantidad),
