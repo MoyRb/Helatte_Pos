@@ -6,18 +6,20 @@
   "main": "dist/main/index.js",
   "type": "module",
   "scripts": {
+    "dev:renderer": "vite --config src/renderer/vite.config.ts",
     "dev:main": "tsc -p tsconfig.main.json --watch",
     "dev:preload": "tsc -p tsconfig.preload.json --watch",
-    "dev:renderer": "cd src/renderer && vite --port 5173",
-    "dev:electron": "wait-on tcp:5173 file:dist/main/index.js file:dist/preload/index.js && electron .",
-    "dev": "concurrently -k \"npm:dev:main\" \"npm:dev:preload\" \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:electron": "wait-on tcp:5173 file:dist/main/index.js file:dist/preload/index.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:preload\" \"npm:dev:electron\"",
     "build:prisma": "prisma generate",
     "build:renderer": "cd src/renderer && vite build",
     "build:preload": "tsc -p tsconfig.preload.json",
     "build:main": "tsc -p tsconfig.main.json",
-    "build": "npm run build:prisma && npm run build:renderer && npm run build:preload && npm run build:main",
+    "build": "npm run db:template && npm run build:prisma && npm run build:renderer && npm run build:preload && npm run build:main",
     "dist": "npm run build && electron-builder",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "db:template": "cross-env DATABASE_URL=file:./prisma/helatte.db prisma migrate reset --force --skip-generate",
+    "postinstall": "npm run build:prisma"
   },
   "dependencies": {
     "@prisma/client": "5.16.2",
@@ -29,17 +31,18 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.20",
-    "concurrently": "^9.0.1",
+    "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
     "electron": "29.4.0",
     "electron-builder": "24.13.3",
-    "postcss": "^8.4.47",
+    "postcss": "^8.5.6",
     "prisma": "5.16.2",
-    "tailwindcss": "^3.4.14",
+    "tailwindcss": "^3.4.17",
+    "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.21.0",
-    "typescript": "^5.6.3",
     "vite": "^5.0.12",
-    "wait-on": "^8.0.1"
+    "wait-on": "^8.0.5"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
