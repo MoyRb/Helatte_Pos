@@ -255,7 +255,7 @@ export const WholesalePage: React.FC = () => {
                      const inCart = cart.find((item) => item.productId === product.id);
                      const lowStock = product.stock <= 5;
                      return (
-                       <tr key={product.id} className={lowStock ? 'bg-blush/10' : ''}>
+                       <tr key={product.id} className={lowStock ? 'bg-butter/20' : ''}>
                          <td className="py-2 font-semibold">{product.name}</td>
                          <td className="py-2">${product.price.toFixed(2)}</td>
                          <td className="py-2">{product.stock}</td>
@@ -292,7 +292,7 @@ export const WholesalePage: React.FC = () => {
                {alert && (
                  <span
                    className={`text-sm px-3 py-1 rounded-full ${
-                     alert.type === 'success' ? 'bg-mint/20 text-accent' : 'bg-blush/40 text-coffee'
+                     alert.type === 'success' ? 'bg-mint/35 text-mintDeep' : 'bg-butter/35 text-butterDeep'
                    }`}
                  >
                    {alert.text}
@@ -305,7 +305,7 @@ export const WholesalePage: React.FC = () => {
                  <div
                    key={item.productId}
                    className={`border border-borderSoft rounded-lg p-3 ${
-                     item.quantity > item.stock ? 'ring-1 ring-blush/60' : ''
+                     item.quantity > item.stock ? 'ring-1 ring-butter/70' : ''
                    }`}
                  >
                    <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -314,12 +314,12 @@ export const WholesalePage: React.FC = () => {
                        <p className="text-xs text-coffee/70">Stock: {item.stock}</p>
                        <p className="text-sm font-medium mt-1">${item.subtotal.toFixed(2)}</p>
                        {item.quantity > item.stock && (
-                         <p className="text-xs text-accent font-semibold">Stock insuficiente</p>
+                         <p className="text-xs text-blushDeep font-semibold">Stock insuficiente</p>
                        )}
                      </div>
                      <div className="flex items-center gap-2">
                        <button
-                         className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
+                         className="p-2 rounded-lg bg-secondarySoft hover:bg-sky/25"
                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                          aria-label="Disminuir"
                        >
@@ -333,7 +333,7 @@ export const WholesalePage: React.FC = () => {
                          className="w-16 text-center border border-borderSoft rounded-lg py-2"
                        />
                        <button
-                         className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
+                         className="p-2 rounded-lg bg-secondarySoft hover:bg-sky/25"
                          onClick={() => updateQuantity(item.productId, Math.min(item.quantity + 1, item.stock))}
                          aria-label="Aumentar"
                          disabled={item.quantity >= item.stock}
@@ -456,7 +456,7 @@ export const WholesalePage: React.FC = () => {
                <PrinterIcon className="h-5 w-5" /> Imprimir
              </button>
              <button
-               className="w-full border border-borderSoft rounded-lg py-2 font-semibold text-coffee hover:bg-secondarySoft"
+               className="btn-secondary w-full"
                onClick={() => setTicketSale(null)}
              >
                Nueva venta mayoreo

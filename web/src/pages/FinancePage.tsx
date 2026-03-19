@@ -75,7 +75,7 @@ export const FinancePage: React.FC = () => {
                       : 'Ventas automáticas + movimientos manuales'}
                   </p>
                 </div>
-                <span className="text-xs px-3 py-1 rounded-full bg-secondarySoft text-coffee/80">
+                <span className="badge-info">
                   {recentMovements(boxKey).length} movimientos recientes
                 </span>
               </div>
@@ -84,7 +84,7 @@ export const FinancePage: React.FC = () => {
                 <label className="flex flex-col gap-1 text-sm font-medium">
                   Concepto
                   <input
-                    className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                    className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
                     value={form.concept}
                     onChange={(e) =>
                       setForms((prev) => ({ ...prev, [boxKey]: { ...form, concept: e.target.value } }))
@@ -98,7 +98,7 @@ export const FinancePage: React.FC = () => {
                     type="number"
                     min={0}
                     step={0.01}
-                    className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                    className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
                     value={form.amount}
                     onChange={(e) =>
                       setForms((prev) => ({ ...prev, [boxKey]: { ...form, amount: Number(e.target.value) } }))
@@ -110,7 +110,7 @@ export const FinancePage: React.FC = () => {
                   Fecha
                   <input
                     type="date"
-                    className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                    className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
                     value={form.date}
                     onChange={(e) => setForms((prev) => ({ ...prev, [boxKey]: { ...form, date: e.target.value } }))}
                     required
@@ -155,7 +155,7 @@ export const FinancePage: React.FC = () => {
                           {isSaleMovement ? 'Venta automática' : 'Manual'} - {movement.kind}
                         </p>
                         {isSaleMovement && (
-                          <p className="text-xs text-red-700">
+                          <p className="text-xs text-blushDeep">
                             Este movimiento proviene de una venta. Para corregirlo, ajusta o elimina la venta.
                           </p>
                         )}
@@ -163,14 +163,14 @@ export const FinancePage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <span
                           className={`font-semibold ${
-                            movement.kind === 'entrada' ? 'text-accent' : 'text-coffee'
+                            movement.kind === 'entrada' ? 'text-mintDeep' : 'text-blushDeep'
                           }`}
                         >
                           {movement.kind === 'entrada' ? '+' : '-'}${movement.amount.toFixed(2)}
                         </span>
                         <button
                           type="button"
-                          className="text-sm font-semibold text-red-700 hover:text-red-800 disabled:text-coffee/50 disabled:cursor-not-allowed"
+                          className="text-sm font-semibold text-blushDeep hover:text-primaryHover disabled:text-coffee/50 disabled:cursor-not-allowed"
                           disabled={isSaleMovement}
                           onClick={() => setMovementToDelete(movement)}
                           title={

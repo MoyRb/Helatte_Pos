@@ -32,10 +32,10 @@ type SidebarProps = {
 
 export const Sidebar: React.FC<SidebarProps> = ({ current, onSelect }) => {
   return (
-    <aside className="bg-surface border-r border-borderSoft/80 h-full w-64 flex flex-col p-4 gap-6 no-print shadow-[8px_0_30px_rgba(43,43,43,0.03)]">
+    <aside className="bg-surface/95 border-r border-borderSoft/80 h-full w-64 flex flex-col p-4 gap-6 no-print shadow-[8px_0_30px_rgba(47,49,51,0.05)]">
       <div className="flex items-center gap-3 px-2">
         {/* Logo (usa el icono 192 de /public/icons/icon-192.png) */}
-        <div className="h-10 w-10 rounded-2xl bg-secondarySoft shadow-card flex items-center justify-center overflow-hidden border border-borderSoft/80">
+        <div className="h-10 w-10 rounded-2xl bg-butter/25 shadow-soft flex items-center justify-center overflow-hidden border border-borderSoft/80">
           <img
             src="/icons/icon-192.png"
             alt="Helatte"
@@ -59,11 +59,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ current, onSelect }) => {
               onClick={() => onSelect(key)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium transition-all border ${
                 active
-                  ? 'bg-primarySoft text-coffee border-primary/20 shadow-[0_6px_18px_rgba(232,90,155,0.14)]'
-                  : 'text-textMuted border-transparent hover:bg-secondarySoft hover:text-coffee'
+                  ? 'bg-primarySoft text-coffee border-primary/30 shadow-[0_10px_24px_rgba(223,159,195,0.20)]'
+                  : 'text-textMuted border-transparent hover:bg-sky/20 hover:text-coffee'
               }`}
             >
-              <Icon className={`h-5 w-5 ${active ? 'text-primary' : 'text-textMuted'}`} />
+              <Icon className={`h-5 w-5 ${active ? 'text-blushDeep' : 'text-textMuted'}`} />
               {label}
             </button>
           );

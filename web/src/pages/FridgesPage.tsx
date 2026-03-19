@@ -33,7 +33,7 @@ export const FridgesPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Cliente
             <select
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.clientId}
               onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
               required
@@ -51,7 +51,7 @@ export const FridgesPage: React.FC = () => {
             <input
               type="number"
               min={1}
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.quantity}
               onChange={(e) => setForm((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
               required
@@ -61,7 +61,7 @@ export const FridgesPage: React.FC = () => {
             Fecha de entrega
             <input
               type="date"
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.deliveryDate}
               onChange={(e) => setForm((prev) => ({ ...prev, deliveryDate: e.target.value }))}
               required
@@ -95,7 +95,7 @@ export const FridgesPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    loan.status === 'entregado' ? 'bg-mint/30 text-accent' : 'bg-blush/40 text-coffee'
+                    loan.status === 'entregado' ? 'bg-mint/35 text-mintDeep' : 'bg-butter/35 text-butterDeep'
                   }`}
                 >
                   {loan.status === 'entregado' ? 'En campo' : 'Devuelto'}
@@ -103,7 +103,7 @@ export const FridgesPage: React.FC = () => {
                 {loan.status !== 'devuelto' && (
                   <button
                     onClick={() => markFridgeReturned(loan.id)}
-                    className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
+                    className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25 text-xs font-semibold"
                   >
                     Marcar devuelto
                   </button>

@@ -55,7 +55,7 @@ const AppContent: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <ExportButton />
-            <div className="px-4 py-2 rounded-xl border border-borderSoft bg-surface shadow-card text-sm text-textMuted">
+            <div className="px-4 py-2 rounded-xl border border-borderSoft bg-butter/20 shadow-soft text-sm text-textMuted">
               Modo offline / localStorage
             </div>
           </div>

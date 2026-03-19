@@ -59,7 +59,7 @@ export const SalesPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => toggleExpanded(sale.id)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/40"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25"
                 >
                   <EyeIcon className="h-5 w-5" />
                   {isExpanded ? 'Ocultar detalle' : 'Ver detalle'}

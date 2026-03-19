@@ -51,7 +51,7 @@ export const CreditsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Cliente
             <select
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.clientId}
               onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
               required
@@ -70,7 +70,7 @@ export const CreditsPage: React.FC = () => {
               type="number"
               min={0}
               step={0.01}
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.amount}
               onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
               required
@@ -80,7 +80,7 @@ export const CreditsPage: React.FC = () => {
             Fecha
             <input
               type="date"
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.date}
               onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
               required
@@ -158,20 +158,20 @@ export const CreditsPage: React.FC = () => {
                       type="number"
                       min={0}
                       step={0.01}
-                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
+                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30 text-sm"
                       value={paymentInput.amount}
                       onChange={(e) => updatePaymentInput(credit.id, { amount: Number(e.target.value) })}
                       placeholder="Monto"
                     />
                     <input
-                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
+                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30 text-sm"
                       value={paymentInput.note}
                       onChange={(e) => updatePaymentInput(credit.id, { note: e.target.value })}
                       placeholder="Nota (opcional)"
                     />
                     <input
                       type="date"
-                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
+                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30 text-sm"
                       value={paymentInput.date}
                       onChange={(e) => updatePaymentInput(credit.id, { date: e.target.value })}
                     />
