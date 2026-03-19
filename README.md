@@ -60,15 +60,15 @@ El admin inicial es `admin@helatte.local` / `admin123`.
 - IPC `backup:export` copia el archivo `helatte.db` a la ruta indicada.
 - Puede extenderse para CSV/Excel desde el proceso main.
 
-## Datos demo
-Vienen en el seed: sabores, productos, clientes, cajas y usuario Admin.
+## Seed base limpia
+El seed deja la base inicial sin datos operativos. Solo conserva las marcas base (`Helatte` y `Las Purepechas`) y el usuario admin (`admin@helatte.local` / `admin123`). Las cajas se crean automáticamente al arrancar Electron si una marca aún no tiene cajas.
 
 ## Pruebas rápidas
-1. Ejecuta `DATABASE_URL="file:./prisma/helatte.db" npx prisma migrate reset` para recrear la base SQLite con datos demo.
-2. Arranca el entorno con `npm run dev` y abre la vista de Catálogo, Finanzas y Ventas.
-3. Agrega un sabor y un producto desde Catálogo y verifica que persistan tras recargar.
-4. Registra un ingreso o gasto en cada caja y revisa que los totales se actualicen.
-5. Arma un carrito en Ventas, usa **Cobrar / Guardar venta** y confirma que se vacíe al guardar.
+1. Ejecuta `DATABASE_URL="file:./prisma/helatte.db" npx prisma migrate reset` para recrear la base SQLite limpia.
+2. Arranca el entorno con `npm run dev` y verifica que carguen las marcas base y el admin inicial.
+3. Confirma que Finanzas cree las cajas por marca al arrancar si no existen.
+4. Agrega un sabor y un producto desde Catálogo y verifica que persistan tras recargar.
+5. Registra una venta o un movimiento de caja para confirmar que la base vacía sigue siendo operativa.
 
 ## Checklist de MVP
 - [x] Tema pastel Helatte + layout POS.
@@ -76,7 +76,7 @@ Vienen en el seed: sabores, productos, clientes, cajas y usuario Admin.
 - [x] POS rápido con carrito y totales.
 - [x] Catálogo (sabores/productos) y clientes.
 - [x] Inventario de producto terminado.
-- [x] Finanzas (cajas) y movimientos demo.
+- [x] Finanzas (cajas) y movimientos de caja.
 - [x] Créditos y refris (listas básicas).
 - [x] Prisma schema + seed + handlers IPC iniciales.
 - [ ] Autenticación completa con roles y permisos UI.
