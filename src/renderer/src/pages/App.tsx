@@ -26,9 +26,11 @@ export default function App() {
   return (
     <div className="flex h-screen bg-background text-texto">
       <aside className="w-64 bg-white/70 backdrop-blur border-r border-borderSoft/80 p-4 flex flex-col shadow-[8px_0_30px_rgba(47,49,51,0.05)]">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-2xl bg-butter/35 border border-borderSoft/80 shadow-inner" />
-          <div>
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-borderSoft/80 bg-white/80 p-1 shadow-sm">
+            <img src="/logo.png" alt="Logo de Helatte POS" className="h-full w-full object-contain" />
+          </div>
+          <div className="min-w-0">
             <p className="font-semibold text-lg">Helatte POS</p>
             <p className="text-sm text-text/60">Nevería &amp; Paletería</p>
           </div>
