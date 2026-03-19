@@ -79,7 +79,18 @@ export type PosSaleReceipt = {
   descuentoTipo: PosDiscountType;
   descuentoValor: number;
   total: number;
+  pagoMetodo: string;
   items: PosSaleReceiptItem[];
+};
+
+export type PosSaleSummary = {
+  saleId: number;
+  folio: string;
+  fecha: string;
+  tipoVenta: PosSaleType;
+  customerName: string | null;
+  total: number;
+  pagoMetodo: string;
 };
 
 export type PromissoryPayment = {
@@ -295,6 +306,10 @@ const api = {
     descuentoTipo?: PosDiscountType;
     descuentoValor?: number;
   }) => ipcRenderer.invoke('pos:venta', data) as Promise<PosSaleReceipt>,
+  listarVentasPOS: (limit = 10) =>
+    ipcRenderer.invoke('pos:ventasRecientes', limit) as Promise<PosSaleSummary[]>,
+  imprimirRemisionVenta: (saleId: number) =>
+    ipcRenderer.invoke('pos:imprimirRemision', saleId) as Promise<{ ok: boolean }>,
 
   // Inventario (materia prima)
   listarMaterias: () =>
