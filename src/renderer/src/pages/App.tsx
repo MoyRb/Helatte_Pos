@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { Gauge, ShoppingBag, Boxes, Users, CreditCard, Refrigerator, BarChart3, Home, Wallet } from 'lucide-react';
+import { Gauge, ShoppingBag, Boxes, Users, CreditCard, Refrigerator, Home, Wallet, ClipboardList } from 'lucide-react';
 import Dashboard from './Dashboard';
 import Catalogo from './Catalogo';
 import Inventario from './Inventario';
@@ -8,6 +8,7 @@ import Finanzas from './Finanzas';
 import Creditos from './Creditos';
 import Refris from './Refris';
 import Clientes from './Clientes';
+import Produccion from './Produccion';
 import { useMemo } from 'react';
 
 const menu = [
@@ -18,6 +19,7 @@ const menu = [
   { path: '/finanzas', label: 'Cajas', icon: Wallet },
   { path: '/creditos', label: 'Créditos', icon: CreditCard },
   { path: '/clientes', label: 'Clientes', icon: Users },
+  { path: '/produccion', label: 'Producción', icon: ClipboardList },
   { path: '/refris', label: 'Refris', icon: Refrigerator }
 ];
 
@@ -63,6 +65,7 @@ export default function App() {
           <Route path="/finanzas" element={<Finanzas />} />
           <Route path="/creditos" element={<Creditos />} />
           <Route path="/clientes" element={<Clientes />} />
+          <Route path="/produccion" element={<Produccion />} />
           <Route path="/refris" element={<Refris />} />
         </Routes>
       </main>

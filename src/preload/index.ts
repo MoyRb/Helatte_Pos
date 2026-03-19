@@ -154,6 +154,49 @@ export type RawMaterial = {
   movimientos?: RawMaterialMovement[];
 };
 
+
+export type ProductionPlanItem = {
+  id?: number;
+  productId?: number | null;
+  nombre: string;
+  presentacion: string;
+  cantidadBase: number;
+  cantidadAjuste: number;
+  cantidadFinal: number;
+  orden: number;
+  esManual: boolean;
+};
+
+export type ProductionPlan = {
+  id?: number;
+  fecha: string;
+  notas: string;
+  createdAt?: string;
+  updatedAt?: string;
+  items: ProductionPlanItem[];
+};
+
+export type ProductionSalesSource = {
+  saleId: number;
+  folio: string;
+  customerName: string | null;
+  total: number;
+};
+
+export type ProductionPlanDraft = {
+  fecha: string;
+  notas: string;
+  items: ProductionPlanItem[];
+};
+
+export type ProductionPlanResponse = {
+  plan: ProductionPlan | null;
+  draft: ProductionPlanDraft;
+  basedOnWholesaleSales: boolean;
+  wholesaleSalesCount: number;
+  wholesaleSources: ProductionSalesSource[];
+};
+
 export type DashboardSale = {
   id: number;
   folio: string;
@@ -310,6 +353,16 @@ const api = {
     ipcRenderer.invoke('pos:ventasRecientes', limit) as Promise<PosSaleSummary[]>,
   imprimirRemisionVenta: (saleId: number) =>
     ipcRenderer.invoke('pos:imprimirRemision', saleId) as Promise<{ ok: boolean }>,
+
+  // Producción
+  obtenerPlanProduccion: (fecha: string) =>
+    ipcRenderer.invoke('produccion:obtenerPlan', fecha) as Promise<ProductionPlanResponse>,
+  reconsolidarPlanProduccion: (fecha: string) =>
+    ipcRenderer.invoke('produccion:reconsolidar', fecha) as Promise<ProductionPlanResponse>,
+  guardarPlanProduccion: (data: ProductionPlanDraft) =>
+    ipcRenderer.invoke('produccion:guardarPlan', data) as Promise<ProductionPlan>,
+  imprimirPlanProduccion: (fecha: string) =>
+    ipcRenderer.invoke('produccion:imprimir', fecha) as Promise<{ ok: boolean }>,
 
   // Inventario (materia prima)
   listarMaterias: () =>

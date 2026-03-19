@@ -52,6 +52,7 @@ model Product {
   sabor      Flavor                  @relation(fields: [saborId], references: [id])
   items      SaleItem[]
   stockMoves FinishedStockMovement[]
+  productionItems ProductionPlanItem[]
 }
 
 model Unit {
@@ -263,6 +264,35 @@ model FridgeVisitItem {
   devuelto Int
 
   visit FridgeVisit @relation(fields: [visitId], references: [id])
+}
+
+
+
+model ProductionPlan {
+  id        Int                  @id @default(autoincrement())
+  fecha     DateTime             @unique
+  notas     String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  items ProductionPlanItem[]
+}
+
+model ProductionPlanItem {
+  id             Int            @id @default(autoincrement())
+  planId         Int
+  productId      Int?
+  nombre         String
+  presentacion   String
+  cantidadBase   Int            @default(0)
+  cantidadAjuste Int            @default(0)
+  orden          Int            @default(0)
+
+  plan    ProductionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  product Product?       @relation(fields: [productId], references: [id])
+
+  @@index([planId], map: "productionplanitem_plan_idx")
+  @@index([productId], map: "productionplanitem_product_idx")
 }
 
 model AuditLog {
