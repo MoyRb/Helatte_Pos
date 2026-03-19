@@ -11,6 +11,7 @@ import Clientes from './Clientes';
 import Produccion from './Produccion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useBrandContext } from '../state/BrandContext';
+import { getBrandIconPath } from '../lib/brandAssets';
 
 const menu = [
   { path: '/', label: 'Dashboard', icon: Home },
@@ -29,7 +30,7 @@ export default function App() {
   const { brands, activeBrand, loading, error, refreshBrands, setActiveBrand } = useBrandContext();
   const [isBrandMenuOpen, setIsBrandMenuOpen] = useState(false);
   const brandMenuRef = useRef<HTMLDivElement | null>(null);
-  const logoSrc = `${import.meta.env.BASE_URL}${activeBrand?.logoPath ?? 'brands/helatte-logo.svg'}`;
+  const activeBrandIconSrc = getBrandIconPath(activeBrand);
   const brandName = activeBrand?.nombre ?? 'Helatte';
   const subtitle = activeBrand?.subtitulo ?? 'Nevería & Paletería';
   const isBrandSelectorDisabled = loading && brands.length === 0;
@@ -86,7 +87,7 @@ export default function App() {
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-borderSoft/80 bg-white/80 p-1 shadow-sm">
-                  <img src={logoSrc} alt={`Logo de ${brandName}`} className="h-full w-full object-contain" />
+                  <img src={activeBrandIconSrc} alt={`Icono de ${brandName}`} className="h-full w-full object-contain" />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-lg">{brandName}</p>
@@ -123,9 +124,14 @@ export default function App() {
                         onClick={() => void handleBrandSelection(brand.slug)}
                         className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition ${isActive ? 'bg-blush/18 text-text shadow-sm' : 'hover:bg-sky/18 text-text/80'} ${loading ? 'cursor-progress' : 'cursor-pointer'}`}
                       >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{brand.nombre}</p>
-                          <p className="truncate text-xs text-text/55">{brand.subtitulo ?? 'Marca disponible en Helatte POS'}</p>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-borderSoft/80 bg-white/85 p-1 shadow-sm">
+                            <img src={getBrandIconPath(brand)} alt={`Icono de ${brand.nombre}`} className="h-full w-full object-contain" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{brand.nombre}</p>
+                            <p className="truncate text-xs text-text/55">{brand.subtitulo ?? 'Marca disponible en Helatte POS'}</p>
+                          </div>
                         </div>
                         {isActive ? <Check size={16} className="shrink-0 text-blushDeep" /> : null}
                       </button>
