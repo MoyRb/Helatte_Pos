@@ -21,6 +21,7 @@ export type Product = {
   saborId: number;
   presentacion: string;
   precio: number;
+  precioMayoreo?: number | null;
   costo: number;
   foto?: string | null;
   stock: number;
@@ -52,6 +53,33 @@ export type Customer = {
   limite: number;
   saldo: number;
   estado: 'activo' | 'inactivo' | string;
+  permiteMayoreo: boolean;
+};
+
+export type PosDiscountType = 'ninguno' | 'porcentaje' | 'monto';
+export type PosSaleType = 'MOSTRADOR' | 'MAYOREO';
+
+export type PosSaleReceiptItem = {
+  productId: number;
+  nombre: string;
+  presentacion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotalLinea: number;
+};
+
+export type PosSaleReceipt = {
+  saleId: number;
+  folio: string;
+  fecha: string;
+  tipoVenta: PosSaleType;
+  customerId: number | null;
+  customerName: string | null;
+  subtotal: number;
+  descuentoTipo: PosDiscountType;
+  descuentoValor: number;
+  total: number;
+  items: PosSaleReceiptItem[];
 };
 
 export type PromissoryPayment = {
@@ -173,6 +201,7 @@ const api = {
     saborId: number;
     presentacion: string;
     precio: number;
+    precioMayoreo?: number | null;
     costo: number;
     sku?: string;
     stock?: number;
@@ -185,6 +214,7 @@ const api = {
     saborId: number;
     presentacion: string;
     precio: number;
+    precioMayoreo?: number | null;
     costo: number;
     sku?: string | null;
     stock?: number;
@@ -201,9 +231,24 @@ const api = {
 
   // Clientes
   listarClientes: () => ipcRenderer.invoke('clientes:listar') as Promise<Customer[]>,
-  crearCliente: (data: { nombre: string; telefono?: string; limite?: number; saldo?: number; estado?: 'activo' | 'inactivo' }) =>
+  crearCliente: (data: {
+    nombre: string;
+    telefono?: string;
+    limite?: number;
+    saldo?: number;
+    estado?: 'activo' | 'inactivo';
+    permiteMayoreo?: boolean;
+  }) =>
     ipcRenderer.invoke('clientes:crear', data) as Promise<Customer>,
-  actualizarCliente: (data: { id: number; nombre: string; telefono?: string; limite?: number; saldo?: number; estado?: 'activo' | 'inactivo' }) =>
+  actualizarCliente: (data: {
+    id: number;
+    nombre: string;
+    telefono?: string;
+    limite?: number;
+    saldo?: number;
+    estado?: 'activo' | 'inactivo';
+    permiteMayoreo?: boolean;
+  }) =>
     ipcRenderer.invoke('clientes:actualizar', data) as Promise<Customer>,
   toggleClienteEstado: (data: { id: number; estado: 'activo' | 'inactivo' }) =>
     ipcRenderer.invoke('clientes:toggleEstado', data) as Promise<Customer>,
@@ -242,8 +287,14 @@ const api = {
   listarVentas: () => ipcRenderer.invoke('ventas:list') as Promise<unknown>,
   crearVenta: (data: { items: { productId: number; cantidad: number }[]; metodo: string; cajeroId?: number }) =>
     ipcRenderer.invoke('ventas:crear', data) as Promise<unknown>,
-  ventaPOS: (data: { items: { productId: number; cantidad: number }[]; customerId?: number | null; cashBoxId?: number | null }) =>
-    ipcRenderer.invoke('pos:venta', data) as Promise<{ saleId: number; folio: string; total: number; customerId: number | null }>,
+  ventaPOS: (data: {
+    items: { productId: number; cantidad: number }[];
+    tipoVenta?: PosSaleType;
+    customerId?: number | null;
+    cashBoxId?: number | null;
+    descuentoTipo?: PosDiscountType;
+    descuentoValor?: number;
+  }) => ipcRenderer.invoke('pos:venta', data) as Promise<PosSaleReceipt>,
 
   // Inventario (materia prima)
   listarMaterias: () =>

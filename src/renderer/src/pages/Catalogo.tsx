@@ -7,6 +7,7 @@ type Product = {
   sku?: string | null;
   presentacion: string;
   precio: number;
+  precioMayoreo?: number | null;
   costo: number;
   stock: number;
   activo: boolean;
@@ -21,6 +22,7 @@ const emptyProducto = {
   saborId: 0,
   presentacion: '',
   precio: '',
+  precioMayoreo: '',
   costo: '',
   sku: '',
   stock: '0',
@@ -185,6 +187,7 @@ export default function Catalogo() {
       saborId: p.sabor?.id ?? 0,
       presentacion: p.presentacion ?? '',
       precio: String(p.precio ?? ''),
+      precioMayoreo: p.precioMayoreo === null || p.precioMayoreo === undefined ? '' : String(p.precioMayoreo),
       costo: String(p.costo ?? ''),
       sku: p.sku ?? '',
       stock: String(p.stock ?? 0),
@@ -201,6 +204,9 @@ export default function Catalogo() {
       saborId: Number(nuevoProducto.saborId),
       presentacion: nuevoProducto.presentacion.trim(),
       precio: parseFloat(String(nuevoProducto.precio)),
+      precioMayoreo: String(nuevoProducto.precioMayoreo).trim()
+        ? parseFloat(String(nuevoProducto.precioMayoreo))
+        : null,
       costo: parseFloat(String(nuevoProducto.costo)),
       sku: nuevoProducto.sku?.trim() ? nuevoProducto.sku.trim() : null,
       stock: parseInt(String(nuevoProducto.stock || 0), 10),
@@ -335,6 +341,7 @@ export default function Catalogo() {
                   <th>Sabor</th>
                   <th>Presentación</th>
                   <th>Precio</th>
+                  <th>Mayoreo</th>
                   <th>Estado</th>
                   <th className="text-right">Acciones</th>
                 </tr>
@@ -347,6 +354,7 @@ export default function Catalogo() {
                     <td>{p.sabor?.nombre ?? saborNombrePorId.get((p as any).saborId) ?? '—'}</td>
                     <td>{p.presentacion}</td>
                     <td>${p.precio.toFixed(2)}</td>
+                    <td>{p.precioMayoreo !== null && p.precioMayoreo !== undefined ? `$${p.precioMayoreo.toFixed(2)}` : 'Normal'}</td>
                     <td>{p.activo ? 'Activo' : 'Inactivo'}</td>
                     <td className="py-1 text-right">
                       <button className="text-primary hover:underline mr-3" onClick={() => abrirEditarProducto(p)}>Editar</button>
@@ -357,7 +365,7 @@ export default function Catalogo() {
                   </tr>
                 ))}
                 {productos.length === 0 && (
-                  <tr><td className="py-2 text-gray-500" colSpan={7}>No hay productos aún.</td></tr>
+                  <tr><td className="py-2 text-gray-500" colSpan={8}>No hay productos aún.</td></tr>
                 )}
               </tbody>
             </table>
@@ -472,6 +480,18 @@ export default function Catalogo() {
                 <label className="flex flex-col text-sm gap-1">
                   Precio
                   <input className="input" type="number" value={nuevoProducto.precio} onChange={(e) => setNuevoProducto((p) => ({ ...p, precio: e.target.value }))} />
+                </label>
+
+                <label className="flex flex-col text-sm gap-1">
+                  Precio mayoreo
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    placeholder="Opcional"
+                    value={nuevoProducto.precioMayoreo}
+                    onChange={(e) => setNuevoProducto((p) => ({ ...p, precioMayoreo: e.target.value }))}
+                  />
                 </label>
 
                 <label className="flex flex-col text-sm gap-1">

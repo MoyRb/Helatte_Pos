@@ -1,6 +1,134 @@
-import { useEffect, useState } from 'react';
-import { ShoppingCart, Minus, Plus, CheckCircle2, AlertTriangle } from 'lucide-react';
-import type { Customer, Flavor, Product } from '../../../preload';
+import { useEffect, useMemo, useState } from 'react';
+import { ShoppingCart, Minus, Plus, CheckCircle2, AlertTriangle, Printer } from 'lucide-react';
+import type { Customer, Flavor, PosDiscountType, PosSaleReceipt, PosSaleType, Product } from '../../../preload';
+
+const currency = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN'
+});
+
+const discountLabels: Record<PosDiscountType, string> = {
+  ninguno: 'Sin descuento',
+  porcentaje: 'Porcentaje',
+  monto: 'Monto fijo'
+};
+
+const saleTypeLabels: Record<PosSaleType, string> = {
+  MOSTRADOR: 'Mostrador',
+  MAYOREO: 'Mayoreo'
+};
+
+const formatMoney = (value: number) => currency.format(value);
+
+const getProductSalePrice = (product: Product, saleType: PosSaleType) => {
+  if (saleType === 'MAYOREO') return product.precioMayoreo ?? product.precio;
+  return product.precio;
+};
+
+const calculateDiscount = (subtotal: number, type: PosDiscountType, rawValue: string) => {
+  const value = Number(rawValue || 0);
+  if (!Number.isFinite(value) || value < 0) {
+    return { value: 0, error: 'El descuento debe ser un número igual o mayor a cero.' };
+  }
+
+  if (type === 'ninguno') return { value: 0, error: '' };
+
+  if (type === 'porcentaje') {
+    if (value > 100) {
+      return { value: 0, error: 'El descuento porcentual no puede ser mayor a 100%.' };
+    }
+    return { value: Number(((subtotal * value) / 100).toFixed(2)), error: '' };
+  }
+
+  if (value > subtotal) {
+    return { value: 0, error: 'El descuento fijo no puede ser mayor al subtotal.' };
+  }
+
+  return { value: Number(value.toFixed(2)), error: '' };
+};
+
+const buildPrintableHtml = (receipt: PosSaleReceipt) => {
+  const discountDescription =
+    receipt.descuentoTipo === 'porcentaje'
+      ? `${receipt.descuentoTipo} (${receipt.descuentoValor > 0 && receipt.subtotal > 0 ? `${((receipt.descuentoValor / receipt.subtotal) * 100).toFixed(2)}%` : '0%'})`
+      : discountLabels[receipt.descuentoTipo];
+
+  const rows = receipt.items
+    .map(
+      (item) => `
+        <tr>
+          <td>${item.nombre} <span style="color:#666; font-size:12px;">(${item.presentacion})</span></td>
+          <td style="text-align:center;">${item.cantidad}</td>
+          <td style="text-align:right;">${formatMoney(item.precioUnitario)}</td>
+          <td style="text-align:right;">${formatMoney(item.subtotalLinea)}</td>
+        </tr>
+      `
+    )
+    .join('');
+
+  return `
+    <!doctype html>
+    <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Remisión ${receipt.folio}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+          h1, h2, p { margin: 0; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .meta { margin-top: 8px; line-height: 1.6; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border-bottom: 1px solid #ddd; padding: 10px 8px; font-size: 14px; }
+          th { text-align: left; background: #f8f8f8; }
+          .totals { margin-top: 20px; margin-left: auto; width: 320px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; }
+          .total { font-weight: 700; font-size: 18px; border-top: 1px solid #111; margin-top: 8px; padding-top: 10px; }
+          .signature { margin-top: 56px; display: flex; justify-content: space-between; gap: 24px; }
+          .signature-box { flex: 1; border-top: 1px solid #111; padding-top: 10px; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1>Helatte POS / Helatte</h1>
+            <div class="meta">
+              <p><strong>Folio:</strong> ${receipt.folio}</p>
+              <p><strong>Fecha y hora:</strong> ${new Date(receipt.fecha).toLocaleString('es-MX')}</p>
+              <p><strong>Tipo de venta:</strong> ${saleTypeLabels[receipt.tipoVenta]}</p>
+              <p><strong>Cliente:</strong> ${receipt.customerName ?? 'N/A'}</p>
+            </div>
+          </div>
+          <div>
+            <h2>Orden / Remisión</h2>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th style="text-align:center;">Cantidad</th>
+              <th style="text-align:right;">Precio unitario</th>
+              <th style="text-align:right;">Subtotal línea</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <div class="totals">
+          <div class="totals-row"><span>Subtotal</span><strong>${formatMoney(receipt.subtotal)}</strong></div>
+          <div class="totals-row"><span>Descuento</span><strong>${discountDescription} - ${formatMoney(receipt.descuentoValor)}</strong></div>
+          <div class="totals-row total"><span>Total</span><strong>${formatMoney(receipt.total)}</strong></div>
+        </div>
+
+        <div class="signature">
+          <div class="signature-box">Entregó</div>
+          <div class="signature-box">Recibió / Firma</div>
+        </div>
+      </body>
+    </html>
+  `;
+};
 
 export default function Ventas() {
   const [productos, setProductos] = useState<Product[]>([]);
@@ -13,6 +141,10 @@ export default function Ventas() {
   const [guardando, setGuardando] = useState(false);
   const [clientes, setClientes] = useState<Customer[]>([]);
   const [clienteId, setClienteId] = useState('');
+  const [tipoVenta, setTipoVenta] = useState<PosSaleType>('MOSTRADOR');
+  const [descuentoTipo, setDescuentoTipo] = useState<PosDiscountType>('ninguno');
+  const [descuentoValor, setDescuentoValor] = useState('0');
+  const [ultimaVenta, setUltimaVenta] = useState<PosSaleReceipt | null>(null);
   const stockDisponible = (prod: Product) => (Number.isFinite(prod.stock) ? prod.stock : Number.MAX_SAFE_INTEGER);
 
   const cargarCatalogo = async () => {
@@ -40,6 +172,55 @@ export default function Ventas() {
     cargarCatalogo();
     cargarClientes();
   }, []);
+
+  useEffect(() => {
+    setMensaje('');
+    setError('');
+    if (tipoVenta === 'MOSTRADOR') return;
+
+    const clienteSeleccionado = clientes.find((cliente) => cliente.id === Number(clienteId));
+    if (clienteSeleccionado && clienteSeleccionado.permiteMayoreo && clienteSeleccionado.estado === 'activo') return;
+    setClienteId('');
+  }, [tipoVenta, clienteId, clientes]);
+
+  const clientesActivos = useMemo(() => clientes.filter((cliente) => cliente.estado === 'activo'), [clientes]);
+  const clientesMayoreo = useMemo(
+    () => clientesActivos.filter((cliente) => cliente.permiteMayoreo),
+    [clientesActivos]
+  );
+
+  const carritoDetallado = useMemo(
+    () =>
+      carrito
+        .map((item) => {
+          const prod = productos.find((p) => p.id === item.id);
+          if (!prod) return null;
+          const precioUnitario = getProductSalePrice(prod, tipoVenta);
+          return {
+            item,
+            producto: prod,
+            precioUnitario,
+            subtotalLinea: precioUnitario * item.qty
+          };
+        })
+        .filter((value): value is NonNullable<typeof value> => value !== null),
+    [carrito, productos, tipoVenta]
+  );
+
+  const subtotal = useMemo(
+    () => Number(carritoDetallado.reduce((sum, row) => sum + row.subtotalLinea, 0).toFixed(2)),
+    [carritoDetallado]
+  );
+
+  const discountPreview = useMemo(
+    () => calculateDiscount(subtotal, descuentoTipo, descuentoValor),
+    [subtotal, descuentoTipo, descuentoValor]
+  );
+
+  const total = useMemo(
+    () => Number(Math.max(subtotal - discountPreview.value, 0).toFixed(2)),
+    [subtotal, discountPreview.value]
+  );
 
   const agregar = (id: number) => {
     const prod = productos.find((p) => p.id === id);
@@ -77,10 +258,21 @@ export default function Ventas() {
     );
   };
 
-  const total = carrito.reduce((sum, item) => {
-    const prod = productos.find((p) => p.id === item.id);
-    return sum + (prod?.precio ?? 0) * item.qty;
-  }, 0);
+  const imprimirRemision = (receipt: PosSaleReceipt) => {
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      setError('No se pudo abrir la ventana de impresión.');
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(buildPrintableHtml(receipt));
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
 
   const cobrar = async () => {
     if (!carrito.length || guardando) return;
@@ -97,17 +289,38 @@ export default function Ventas() {
         return;
       }
 
-      await window.helatte.ventaPOS({
+      if (tipoVenta === 'MAYOREO' && !clienteId) {
+        setError('Selecciona un cliente registrado para ventas de mayoreo.');
+        return;
+      }
+
+      if (discountPreview.error) {
+        setError(discountPreview.error);
+        return;
+      }
+
+      const resultado = await window.helatte.ventaPOS({
         items: carrito.map((item) => ({ productId: item.id, cantidad: item.qty })),
-        customerId: clienteId ? Number(clienteId) : undefined
+        tipoVenta,
+        customerId: clienteId ? Number(clienteId) : undefined,
+        descuentoTipo,
+        descuentoValor: descuentoTipo === 'ninguno' ? 0 : Number(descuentoValor || 0)
       });
+
+      setUltimaVenta(resultado);
       setCarrito([]);
-      setMensaje('Venta registrada correctamente.');
+      setMensaje(
+        resultado.tipoVenta === 'MAYOREO'
+          ? `Venta mayoreo ${resultado.folio} registrada correctamente.`
+          : 'Venta registrada correctamente.'
+      );
       setClienteId('');
-      cargarCatalogo();
-    } catch (error) {
-      console.error(error);
-      setError('No se pudo guardar la venta');
+      setDescuentoTipo('ninguno');
+      setDescuentoValor('0');
+      await cargarCatalogo();
+    } catch (caughtError) {
+      console.error(caughtError);
+      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la venta');
     } finally {
       setGuardando(false);
     }
@@ -116,66 +329,151 @@ export default function Ventas() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
       <div className="lg:col-span-2 card p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">POS rápido</h2>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-xl font-semibold">POS rápido</h2>
+            <p className="text-sm text-gray-600">Mostrador sin fricción y mayoreo con cliente, descuento e impresión.</p>
+          </div>
           <input placeholder="Buscar" className="border rounded-lg px-3 py-2 text-sm" disabled />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-secondary/70 bg-secondary/20 p-3 space-y-2">
+            <p className="text-sm font-medium text-gray-700">Tipo de venta</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['MOSTRADOR', 'MAYOREO'] as PosSaleType[]).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setTipoVenta(option)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    tipoVenta === option
+                      ? 'border-primary bg-primary/80 text-black'
+                      : 'border-secondary/80 bg-white text-gray-700 hover:bg-secondary/20'
+                  }`}
+                >
+                  {saleTypeLabels[option]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-secondary/70 bg-secondary/20 p-3 space-y-1">
+            <p className="text-sm font-medium text-gray-700">Reglas activas</p>
+            <p className="text-sm text-gray-600">
+              {tipoVenta === 'MOSTRADOR'
+                ? 'Se conserva el flujo rápido actual y el precio normal.'
+                : 'Cliente obligatorio, precio mayoreo por producto y opción de remisión.'}
+            </p>
+          </div>
+        </div>
+
         {cargando ? (
           <p className="text-sm text-gray-500">Cargando productos...</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-            {productos.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => agregar(p.id)}
-                type="button"
-                className={`rounded-xl border border-primary/60 bg-white/80 hover:-translate-y-0.5 transition shadow-sm p-3 text-left ${
-                  p.stock <= 0 ? 'opacity-50' : ''
-                }`}
-              >
-                <p className="font-semibold">{p.sabor?.nombre ?? p.presentacion}</p>
-                <p className="text-xs text-gray-600 capitalize">{p.tipo.nombre}</p>
-                <p className="text-sm">${p.precio.toFixed(2)}</p>
-                <p className="text-xs text-gray-500">Stock: {p.stock}</p>
-              </button>
-            ))}
+            {productos.map((p) => {
+              const precioActivo = getProductSalePrice(p, tipoVenta);
+              const usandoPrecioMayoreo = tipoVenta === 'MAYOREO' && p.precioMayoreo !== null && p.precioMayoreo !== undefined;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => agregar(p.id)}
+                  type="button"
+                  className={`rounded-xl border border-primary/60 bg-white/80 hover:-translate-y-0.5 transition shadow-sm p-3 text-left ${
+                    p.stock <= 0 ? 'opacity-50' : ''
+                  }`}
+                >
+                  <p className="font-semibold">{p.sabor?.nombre ?? p.presentacion}</p>
+                  <p className="text-xs text-gray-600 capitalize">{p.tipo.nombre}</p>
+                  <p className="text-sm font-medium">{formatMoney(precioActivo)}</p>
+                  <p className="text-[11px] text-gray-500">
+                    {usandoPrecioMayoreo ? 'Precio mayoreo aplicado' : tipoVenta === 'MAYOREO' ? 'Usando precio normal como fallback' : 'Precio mostrador'}
+                  </p>
+                  <p className="text-xs text-gray-500">Stock: {p.stock}</p>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
+
       <div className="card p-4 flex flex-col">
         <div className="flex items-center gap-2 mb-3">
           <ShoppingCart size={18} />
           <h3 className="font-semibold">Carrito</h3>
         </div>
-        <div className="space-y-2 mb-3">
-          <label className="text-sm text-gray-700">Cliente (opcional)</label>
-          <select
-            className="input"
-            value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
-            disabled={cargandoClientes}
-          >
-            <option value="">Venta de contado</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.nombre} {cliente.saldo > 0 ? `(Saldo: $${cliente.saldo.toFixed(2)})` : ''}
-              </option>
-            ))}
-          </select>
+
+        <div className="space-y-3 mb-3">
+          <div className="space-y-2">
+            <label className="text-sm text-gray-700">
+              Cliente {tipoVenta === 'MAYOREO' ? '(obligatorio)' : '(opcional)'}
+            </label>
+            <select
+              className="input"
+              value={clienteId}
+              onChange={(e) => setClienteId(e.target.value)}
+              disabled={cargandoClientes}
+            >
+              <option value="">{tipoVenta === 'MAYOREO' ? 'Selecciona cliente mayoreo' : 'Venta de contado'}</option>
+              {(tipoVenta === 'MAYOREO' ? clientesMayoreo : clientesActivos).map((cliente) => (
+                <option key={cliente.id} value={cliente.id}>
+                  {cliente.nombre}
+                  {cliente.saldo > 0 ? ` (Saldo: ${formatMoney(cliente.saldo)})` : ''}
+                </option>
+              ))}
+            </select>
+            {tipoVenta === 'MAYOREO' && clientesMayoreo.length === 0 && !cargandoClientes && (
+              <p className="text-xs text-amber-700">No hay clientes activos habilitados para mayoreo.</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-secondary/70 bg-secondary/20 p-3 space-y-2">
+            <p className="text-sm font-medium text-gray-700">Descuento general</p>
+            <div className="grid grid-cols-1 gap-2">
+              <select
+                className="input"
+                value={descuentoTipo}
+                onChange={(e) => {
+                  const value = e.target.value as PosDiscountType;
+                  setDescuentoTipo(value);
+                  if (value === 'ninguno') setDescuentoValor('0');
+                }}
+              >
+                <option value="ninguno">Sin descuento</option>
+                <option value="porcentaje">Descuento porcentual</option>
+                <option value="monto">Descuento fijo</option>
+              </select>
+              {descuentoTipo !== 'ninguno' && (
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={descuentoTipo === 'porcentaje' ? 100 : undefined}
+                  value={descuentoValor}
+                  onChange={(e) => setDescuentoValor(e.target.value)}
+                  placeholder={descuentoTipo === 'porcentaje' ? 'Ej. 10' : 'Ej. 150'}
+                />
+              )}
+              {discountPreview.error && <p className="text-xs text-red-600">{discountPreview.error}</p>}
+            </div>
+          </div>
         </div>
+
         <div className="space-y-2 flex-1 overflow-auto">
           {carrito.length === 0 && <p className="text-sm text-gray-500">Agrega productos al carrito.</p>}
-          {carrito.map((item) => {
-            const prod = productos.find((p) => p.id === item.id);
-            if (!prod) return null;
-            const sabor = sabores.find((s) => s.id === prod.sabor.id)?.nombre ?? prod.sabor.nombre;
+          {carritoDetallado.map(({ item, producto, precioUnitario, subtotalLinea }) => {
+            const sabor = sabores.find((s) => s.id === producto.sabor.id)?.nombre ?? producto.sabor.nombre;
             return (
-              <div key={item.id} className="flex items-center justify-between bg-secondary/40 rounded-lg px-3 py-2">
-                <div>
-                  <p className="font-semibold">{sabor}</p>
-                  <p className="text-xs text-gray-600 capitalize">{prod.tipo.nombre}</p>
+              <div key={item.id} className="bg-secondary/40 rounded-lg px-3 py-2 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{sabor}</p>
+                    <p className="text-xs text-gray-600 capitalize">{producto.tipo.nombre}</p>
+                    <p className="text-xs text-gray-500">Unitario: {formatMoney(precioUnitario)}</p>
+                  </div>
+                  <p className="text-right font-semibold">{formatMoney(subtotalLinea)}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button className="p-1" onClick={() => cambiar(item.id, -1)} type="button">
                     <Minus size={16} />
                   </button>
@@ -183,12 +481,12 @@ export default function Ventas() {
                   <button className="p-1" onClick={() => cambiar(item.id, 1)} type="button">
                     <Plus size={16} />
                   </button>
-                  <p className="w-16 text-right font-semibold">${(prod.precio * item.qty).toFixed(2)}</p>
                 </div>
               </div>
             );
           })}
         </div>
+
         <div className="pt-3 border-t mt-3 space-y-2">
           <div className="flex items-center gap-2 text-sm text-green-700" hidden={!mensaje}>
             <CheckCircle2 size={16} />
@@ -198,16 +496,41 @@ export default function Ventas() {
             <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
-          <p className="text-sm text-gray-600">Total</p>
-          <p className="text-2xl font-semibold">${total.toFixed(2)}</p>
+
+          <div className="rounded-xl bg-secondary/20 p-3 space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Subtotal</span>
+              <span className="font-medium">{formatMoney(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Descuento</span>
+              <span className="font-medium">- {formatMoney(discountPreview.value)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-secondary/70 pt-2">
+              <span className="text-gray-700 font-medium">Total final</span>
+              <span className="text-2xl font-semibold">{formatMoney(total)}</span>
+            </div>
+          </div>
+
           <button
-            className="mt-3 w-full bg-primary text-black font-semibold py-2 rounded-lg hover:opacity-90"
+            className="mt-3 w-full bg-primary text-black font-semibold py-2 rounded-lg hover:opacity-90 disabled:opacity-60"
             onClick={cobrar}
             disabled={!carrito.length || guardando}
             type="button"
           >
-            Cobrar / Guardar venta
+            {guardando ? 'Guardando...' : 'Cobrar / Guardar venta'}
           </button>
+
+          {ultimaVenta?.tipoVenta === 'MAYOREO' && (
+            <button
+              className="w-full border border-primary text-primary font-semibold py-2 rounded-lg hover:bg-primary/10 flex items-center justify-center gap-2"
+              onClick={() => imprimirRemision(ultimaVenta)}
+              type="button"
+            >
+              <Printer size={16} />
+              Imprimir orden / remisión
+            </button>
+          )}
         </div>
       </div>
     </div>

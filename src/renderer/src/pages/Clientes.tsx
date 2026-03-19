@@ -10,6 +10,7 @@ type ClienteForm = {
   limite: string;
   saldo: string;
   estado: 'activo' | 'inactivo';
+  permiteMayoreo: boolean;
 };
 
 const emptyForm: ClienteForm = {
@@ -17,7 +18,8 @@ const emptyForm: ClienteForm = {
   telefono: '',
   limite: '0',
   saldo: '0',
-  estado: 'activo'
+  estado: 'activo',
+  permiteMayoreo: true
 };
 
 const helatte = window.helatte;
@@ -103,7 +105,8 @@ export default function Clientes() {
       telefono: cliente.telefono ?? '',
       limite: cliente.limite.toString(),
       saldo: cliente.saldo.toString(),
-      estado: cliente.estado
+      estado: cliente.estado,
+      permiteMayoreo: cliente.permiteMayoreo
     });
     setAsignaciones([]);
     cargarAsignacionesCliente(cliente.id);
@@ -148,7 +151,8 @@ export default function Clientes() {
           telefono: form.telefono.trim() || undefined,
           limite,
           saldo,
-          estado: form.estado
+          estado: form.estado,
+          permiteMayoreo: form.permiteMayoreo
         });
       } else {
         await helatte.crearCliente({
@@ -156,7 +160,8 @@ export default function Clientes() {
           telefono: form.telefono.trim() || undefined,
           limite,
           saldo,
-          estado: form.estado
+          estado: form.estado,
+          permiteMayoreo: form.permiteMayoreo
         });
       }
       const clientesActualizados = await cargarClientes();
@@ -287,6 +292,7 @@ export default function Clientes() {
                 <th>Límite</th>
                 <th>Saldo</th>
                 <th>Estado</th>
+                <th>Mayoreo</th>
                 <th></th>
               </tr>
             </thead>
@@ -298,6 +304,7 @@ export default function Clientes() {
                   <td>${c.limite.toFixed(2)}</td>
                   <td>${c.saldo.toFixed(2)}</td>
                   <td className="capitalize">{c.estado}</td>
+                  <td>{c.permiteMayoreo ? 'Sí' : 'No'}</td>
                   <td className="space-x-2 text-right">
                     <button className="text-primary text-sm" onClick={() => abrirEditar(c)}>
                       Editar
@@ -368,6 +375,14 @@ export default function Clientes() {
                   <option value="activo">Activo</option>
                   <option value="inactivo">Inactivo</option>
                 </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.permiteMayoreo}
+                  onChange={(e) => setForm((f) => ({ ...f, permiteMayoreo: e.target.checked }))}
+                />
+                Habilitar cliente para compras de mayoreo
               </label>
             </div>
             {editando ? (
