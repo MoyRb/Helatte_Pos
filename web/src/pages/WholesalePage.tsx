@@ -178,7 +178,7 @@ export const WholesalePage: React.FC = () => {
                  <select
                    value={selectedClient}
                    onChange={(e) => setSelectedClient(e.target.value)}
-                   className="mt-1 w-full border border-cream rounded-lg px-3 py-2 bg-white"
+                   className="mt-1 w-full border border-borderSoft rounded-lg px-3 py-2 bg-surface"
                  >
                    <option value="">Sin cliente</option>
                    {clients.map((client) => (
@@ -195,7 +195,7 @@ export const WholesalePage: React.FC = () => {
                    value={customClient}
                    onChange={(e) => setCustomClient(e.target.value)}
                    placeholder="Nombre libre"
-                   className="mt-1 w-full border border-cream rounded-lg px-3 py-2"
+                   className="mt-1 w-full border border-borderSoft rounded-lg px-3 py-2"
                    disabled={!!selectedClient}
                  />
                </label>
@@ -209,7 +209,7 @@ export const WholesalePage: React.FC = () => {
                    value={search}
                    onChange={(e) => setSearch(e.target.value)}
                    placeholder="Escribe para filtrar"
-                   className="mt-1 w-full border border-cream rounded-lg px-3 py-2"
+                   className="mt-1 w-full border border-borderSoft rounded-lg px-3 py-2"
                  />
                </label>
                <label>
@@ -218,7 +218,7 @@ export const WholesalePage: React.FC = () => {
                    <select
                      value={discountType}
                      onChange={(e) => setDiscountType(e.target.value as 'amount' | 'percent')}
-                     className="border border-cream rounded-lg px-2 py-2 text-sm"
+                     className="border border-borderSoft rounded-lg px-2 py-2 text-sm"
                    >
                      <option value="amount">$ Monto</option>
                      <option value="percent">% Porcentaje</option>
@@ -228,7 +228,7 @@ export const WholesalePage: React.FC = () => {
                      min={0}
                      value={discountValue}
                      onChange={(e) => setDiscountValue(Number(e.target.value))}
-                     className="flex-1 border border-cream rounded-lg px-3 py-2"
+                     className="flex-1 border border-borderSoft rounded-lg px-3 py-2"
                    />
                  </div>
                </label>
@@ -250,7 +250,7 @@ export const WholesalePage: React.FC = () => {
                      <th className="py-2">Acciones</th>
                    </tr>
                  </thead>
-                 <tbody className="divide-y divide-cream">
+                 <tbody className="divide-y divide-borderSoft">
                    {filteredProducts.map((product) => {
                      const inCart = cart.find((item) => item.productId === product.id);
                      const lowStock = product.stock <= 5;
@@ -304,7 +304,7 @@ export const WholesalePage: React.FC = () => {
                {cartItems.map((item) => (
                  <div
                    key={item.productId}
-                   className={`border border-cream rounded-lg p-3 ${
+                   className={`border border-borderSoft rounded-lg p-3 ${
                      item.quantity > item.stock ? 'ring-1 ring-blush/60' : ''
                    }`}
                  >
@@ -319,7 +319,7 @@ export const WholesalePage: React.FC = () => {
                      </div>
                      <div className="flex items-center gap-2">
                        <button
-                         className="p-2 rounded-lg bg-cream hover:bg-blush/50"
+                         className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                          aria-label="Disminuir"
                        >
@@ -330,10 +330,10 @@ export const WholesalePage: React.FC = () => {
                          min={1}
                          value={item.quantity}
                          onChange={(e) => updateQuantity(item.productId, Number(e.target.value))}
-                         className="w-16 text-center border border-cream rounded-lg py-2"
+                         className="w-16 text-center border border-borderSoft rounded-lg py-2"
                        />
                        <button
-                         className="p-2 rounded-lg bg-cream hover:bg-blush/50"
+                         className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
                          onClick={() => updateQuantity(item.productId, Math.min(item.quantity + 1, item.stock))}
                          aria-label="Aumentar"
                          disabled={item.quantity >= item.stock}
@@ -354,11 +354,11 @@ export const WholesalePage: React.FC = () => {
                    value={notes}
                    onChange={(e) => setNotes(e.target.value)}
                    placeholder="Instrucciones, empaques, etc."
-                   className="mt-1 w-full border border-cream rounded-lg px-3 py-2 min-h-[80px]"
+                   className="mt-1 w-full border border-borderSoft rounded-lg px-3 py-2 min-h-[80px]"
                  />
                </label>
  
-               <div className="border-t border-cream pt-3 flex items-center justify-between md:col-span-2">
+               <div className="border-t border-borderSoft pt-3 flex items-center justify-between md:col-span-2">
                  <div>
                    <p className="text-sm text-coffee/70">Subtotal</p>
                    <p className="text-lg font-semibold">${preDiscountTotal.toFixed(2)}</p>
@@ -396,20 +396,20 @@ export const WholesalePage: React.FC = () => {
              </div>
            </div>
  
-           <div className="border-t border-cream pt-3 text-sm">
+           <div className="border-t border-borderSoft pt-3 text-sm">
              <p className="font-semibold">Cliente</p>
              <p>{renderClientLabel()}</p>
              {currentClient?.phone && <p className="text-coffee/70">Tel. {currentClient.phone}</p>}
            </div>
  
-           <div className="border-t border-cream pt-3">
+           <div className="border-t border-borderSoft pt-3">
              <div className="grid grid-cols-4 text-xs text-coffee/70 font-semibold pb-2">
                <span>Producto</span>
                <span className="text-center">Cant.</span>
                <span className="text-right">Precio</span>
                <span className="text-right">Importe</span>
              </div>
-             <div className="divide-y divide-cream text-sm">
+             <div className="divide-y divide-borderSoft text-sm">
                {(ticketSale?.items ?? cartItems).map((item) => (
                  <div key={`${item.productId}-${item.name}`} className="grid grid-cols-4 py-1">
                    <span className="font-medium">{item.name}</span>
@@ -424,7 +424,7 @@ export const WholesalePage: React.FC = () => {
              </div>
            </div>
  
-           <div className="border-t border-cream pt-3">
+           <div className="border-t border-borderSoft pt-3">
              <div className="flex items-center justify-between">
                <span className="text-sm text-coffee/70">Subtotal</span>
                <span className="font-semibold">${(ticketSale?.total ?? preDiscountTotal).toFixed(2)}</span>
@@ -456,7 +456,7 @@ export const WholesalePage: React.FC = () => {
                <PrinterIcon className="h-5 w-5" /> Imprimir
              </button>
              <button
-               className="w-full border border-cream rounded-lg py-2 font-semibold text-coffee hover:bg-cream"
+               className="w-full border border-borderSoft rounded-lg py-2 font-semibold text-coffee hover:bg-secondarySoft"
                onClick={() => setTicketSale(null)}
              >
                Nueva venta mayoreo

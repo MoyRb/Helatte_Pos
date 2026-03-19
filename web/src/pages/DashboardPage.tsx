@@ -25,6 +25,17 @@ const formatShortDay = (date: Date) => {
   return `${month}-${day}`;
 };
 
+const chartPalette = {
+  grid: '#E9D8E1',
+  axis: '#6F6870',
+  line: '#E85A9B',
+  barPrimary: '#E85A9B',
+  barSecondary: '#D94A8B',
+};
+
+const formatCurrencyTooltip = (value: number | string | undefined) => `$${Number(value ?? 0).toFixed(2)}`;
+const formatUnitsTooltip = (value: number | string | undefined) => `${Number(value ?? 0)} uds`;
+
 export const DashboardPage: React.FC = () => {
   const { products, sales, credits, clients } = usePos();
   const [range, setRange] = useState<'7' | '30'>('7');
@@ -171,7 +182,7 @@ export const DashboardPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-coffee/70">Rango:</span>
-          <div className="bg-cream/70 border border-cream rounded-lg p-1 inline-flex">
+          <div className="bg-secondarySoft/70 border border-borderSoft rounded-lg p-1 inline-flex">
             {(
               [
                 { label: '7 días', value: '7' },
@@ -182,7 +193,7 @@ export const DashboardPage: React.FC = () => {
                 key={option.value}
                 onClick={() => setRange(option.value)}
                 className={`px-3 py-1 rounded-md text-sm font-semibold transition ${{
-                  true: 'bg-white shadow-card text-coffee',
+                  true: 'bg-surface shadow-card text-coffee',
                   false: 'text-coffee/70 hover:text-coffee',
                 }[String(range === option.value) as 'true' | 'false']}`}
               >
@@ -222,14 +233,27 @@ export const DashboardPage: React.FC = () => {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailySalesData} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1e6d6" />
-                <XAxis dataKey="day" stroke="#7c5b47" tickLine={false} />
-                <YAxis stroke="#7c5b47" tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartPalette.grid} />
+                <XAxis dataKey="day" stroke={chartPalette.axis} tickLine={false} axisLine={false} />
+                <YAxis stroke={chartPalette.axis} tickLine={false} axisLine={false} />
                 <Tooltip
-                  formatter={(value: number) => `$${value.toFixed(2)}`}
+                  formatter={formatCurrencyTooltip}
                   labelFormatter={(label) => `Fecha: ${label}`}
+                  contentStyle={{
+                    borderRadius: '16px',
+                    border: `1px solid ${chartPalette.grid}`,
+                    backgroundColor: '#FFFDFE',
+                    boxShadow: '0 14px 32px rgba(232, 90, 155, 0.12)',
+                  }}
                 />
-                <Line type="monotone" dataKey="total" stroke="#c17a45" strokeWidth={3} dot={{ r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke={chartPalette.line}
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: chartPalette.line, stroke: '#FFFDFE', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: chartPalette.line, stroke: '#FFFDFE', strokeWidth: 2 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -239,7 +263,7 @@ export const DashboardPage: React.FC = () => {
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Top productos</h3>
-            <div className="bg-cream/70 border border-cream rounded-lg p-1 inline-flex text-xs font-semibold">
+            <div className="bg-secondarySoft/70 border border-borderSoft rounded-lg p-1 inline-flex text-xs font-semibold">
               {(
                 [
                   { label: 'Por monto', value: 'amount' },
@@ -250,7 +274,7 @@ export const DashboardPage: React.FC = () => {
                   key={option.value}
                   onClick={() => setProductMetric(option.value)}
                   className={`px-2 py-1 rounded-md transition ${{
-                    true: 'bg-white shadow-card text-coffee',
+                    true: 'bg-surface shadow-card text-coffee',
                     false: 'text-coffee/70 hover:text-coffee',
                   }[String(productMetric === option.value) as 'true' | 'false']}`}
                 >
@@ -267,15 +291,23 @@ export const DashboardPage: React.FC = () => {
                   layout="vertical"
                   margin={{ top: 5, right: 20, bottom: 5, left: 40 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1e6d6" />
-                  <XAxis type="number" stroke="#7c5b47" tickLine={false} />
-                  <YAxis dataKey="name" type="category" stroke="#7c5b47" width={120} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartPalette.grid} />
+                  <XAxis type="number" stroke={chartPalette.axis} tickLine={false} axisLine={false} />
+                  <YAxis dataKey="name" type="category" stroke={chartPalette.axis} width={120} axisLine={false} />
                   <Tooltip
-                    formatter={(value: number) =>
-                      productMetric === 'amount' ? `$${value.toFixed(2)}` : `${value} uds`
-                    }
+                    formatter={productMetric === 'amount' ? formatCurrencyTooltip : formatUnitsTooltip}
+                    contentStyle={{
+                      borderRadius: '16px',
+                      border: `1px solid ${chartPalette.grid}`,
+                      backgroundColor: '#FFFDFE',
+                      boxShadow: '0 14px 32px rgba(232, 90, 155, 0.12)',
+                    }}
                   />
-                  <Bar dataKey={productMetric === 'amount' ? 'amount' : 'quantity'} fill="#c17a45" radius={[6, 6, 6, 6]} />
+                  <Bar
+                    dataKey={productMetric === 'amount' ? 'amount' : 'quantity'}
+                    fill={chartPalette.barPrimary}
+                    radius={[8, 8, 8, 8]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -288,7 +320,7 @@ export const DashboardPage: React.FC = () => {
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-semibold">Top clientes (créditos)</h3>
-          <div className="bg-cream/70 border border-cream rounded-lg p-1 inline-flex text-xs font-semibold">
+          <div className="bg-secondarySoft/70 border border-borderSoft rounded-lg p-1 inline-flex text-xs font-semibold">
             {(
               [
                 { label: 'Saldo', value: 'balance' },
@@ -299,7 +331,7 @@ export const DashboardPage: React.FC = () => {
                 key={option.value}
                 onClick={() => setClientMetric(option.value)}
                 className={`px-3 py-1 rounded-md transition ${{
-                  true: 'bg-white shadow-card text-coffee',
+                  true: 'bg-surface shadow-card text-coffee',
                   false: 'text-coffee/70 hover:text-coffee',
                 }[String(clientMetric === option.value) as 'true' | 'false']}`}
               >
@@ -312,15 +344,23 @@ export const DashboardPage: React.FC = () => {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={clientChartData} layout="vertical" margin={{ top: 5, right: 20, bottom: 5, left: 50 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1e6d6" />
-                <XAxis type="number" stroke="#7c5b47" tickLine={false} />
-                <YAxis dataKey="name" type="category" stroke="#7c5b47" width={150} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartPalette.grid} />
+                <XAxis type="number" stroke={chartPalette.axis} tickLine={false} axisLine={false} />
+                <YAxis dataKey="name" type="category" stroke={chartPalette.axis} width={150} axisLine={false} />
                 <Tooltip
-                  formatter={(value: number) =>
-                    clientMetric === 'balance' ? `$${value.toFixed(2)}` : `$${value.toFixed(2)}`
-                  }
+                  formatter={formatCurrencyTooltip}
+                  contentStyle={{
+                    borderRadius: '16px',
+                    border: `1px solid ${chartPalette.grid}`,
+                    backgroundColor: '#FFFDFE',
+                    boxShadow: '0 14px 32px rgba(232, 90, 155, 0.12)',
+                  }}
                 />
-                <Bar dataKey={clientMetric === 'balance' ? 'balance' : 'total'} fill="#7aa8a2" radius={[6, 6, 6, 6]} />
+                <Bar
+                  dataKey={clientMetric === 'balance' ? 'balance' : 'total'}
+                  fill={chartPalette.barSecondary}
+                  radius={[8, 8, 8, 8]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -336,7 +376,7 @@ export const DashboardPage: React.FC = () => {
             {lowStock.map((product) => (
               <div
                 key={product.id}
-                className="flex items-center justify-between bg-cream/70 border border-cream rounded-lg px-4 py-3"
+                className="flex items-center justify-between bg-secondarySoft/70 border border-borderSoft rounded-lg px-4 py-3"
               >
                 <div>
                   <p className="font-semibold">{product.name}</p>
@@ -360,7 +400,7 @@ export const DashboardPage: React.FC = () => {
               return (
                 <div
                   key={sale.id}
-                  className="flex items-center justify-between bg-cream/70 border border-cream rounded-lg px-4 py-3"
+                  className="flex items-center justify-between bg-secondarySoft/70 border border-borderSoft rounded-lg px-4 py-3"
                 >
                   <div>
                     <p className="font-semibold">{dateLabel}</p>

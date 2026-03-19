@@ -22,7 +22,7 @@ export const ExportButton: React.FC = () => {
     <button
       type="button"
       onClick={handleExport}
-      className="inline-flex items-center gap-2 rounded-lg bg-coffee text-cream px-3 py-2 text-sm font-semibold shadow-card hover:bg-coffee/90 transition-colors"
+      className="inline-flex items-center gap-2 rounded-xl border border-borderSoft bg-surface px-3 py-2 text-sm font-semibold text-coffee shadow-card hover:border-primary/30 hover:bg-secondarySoft"
     >
       <ArrowDownTrayIcon className="h-5 w-5" />
       <span>Exportar a Excel</span>

@@ -73,13 +73,13 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({ movement, onCa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-coffee">¿Eliminar movimiento?</p>
           <p className="text-xs text-coffee/70">Esta acción no se puede deshacer.</p>
         </div>
 
-        <div className="rounded-lg border border-cream p-4 bg-cream/40 space-y-1">
+        <div className="rounded-lg border border-borderSoft p-4 bg-secondarySoft/40 space-y-1">
           <p className="text-sm font-semibold text-coffee">{movement.concept}</p>
           <p className="text-xs text-coffee/70">{formattedDate}</p>
           <p
@@ -101,7 +101,7 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({ movement, onCa
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              className="w-full border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               placeholder="Nuevo PIN"
               minLength={4}
             />
@@ -109,7 +109,7 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({ movement, onCa
               type="password"
               value={confirmPin}
               onChange={(e) => setConfirmPin(e.target.value)}
-              className="w-full border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               placeholder="Repetir PIN"
               minLength={4}
             />
@@ -124,7 +124,7 @@ export const ConfirmPinModal: React.FC<ConfirmPinModalProps> = ({ movement, onCa
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              className="w-full border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               placeholder="PIN"
             />
           </div>

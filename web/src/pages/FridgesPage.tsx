@@ -33,7 +33,7 @@ export const FridgesPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Cliente
             <select
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.clientId}
               onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
               required
@@ -51,7 +51,7 @@ export const FridgesPage: React.FC = () => {
             <input
               type="number"
               min={1}
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.quantity}
               onChange={(e) => setForm((prev) => ({ ...prev, quantity: Number(e.target.value) }))}
               required
@@ -61,7 +61,7 @@ export const FridgesPage: React.FC = () => {
             Fecha de entrega
             <input
               type="date"
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.deliveryDate}
               onChange={(e) => setForm((prev) => ({ ...prev, deliveryDate: e.target.value }))}
               required
@@ -86,7 +86,7 @@ export const FridgesPage: React.FC = () => {
 
         <div className="space-y-3">
           {sortedLoans.map((loan) => (
-            <div key={loan.id} className="border border-cream rounded-lg p-4 bg-white shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div key={loan.id} className="border border-borderSoft rounded-lg p-4 bg-surface shadow-sm flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-xs text-coffee/70">{new Date(loan.deliveryDate).toLocaleDateString()}</p>
                 <p className="font-semibold">{getClientName(loan.clientId)}</p>
@@ -103,7 +103,7 @@ export const FridgesPage: React.FC = () => {
                 {loan.status !== 'devuelto' && (
                   <button
                     onClick={() => markFridgeReturned(loan.id)}
-                    className="px-3 py-2 rounded-lg bg-cream text-coffee hover:bg-blush/50 text-xs font-semibold"
+                    className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
                   >
                     Marcar devuelto
                   </button>

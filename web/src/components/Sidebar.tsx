@@ -27,15 +27,15 @@ const navItems = [
 
 type SidebarProps = {
   current: string;
-  onSelect: (key: string) => void;
+  onSelect: (key: (typeof navItems)[number]['key']) => void;
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ current, onSelect }) => {
   return (
-    <aside className="bg-white border-r border-cream/80 h-full w-64 flex flex-col p-4 gap-6 no-print">
+    <aside className="bg-surface border-r border-borderSoft/80 h-full w-64 flex flex-col p-4 gap-6 no-print shadow-[8px_0_30px_rgba(43,43,43,0.03)]">
       <div className="flex items-center gap-3 px-2">
         {/* Logo (usa el icono 192 de /public/icons/icon-192.png) */}
-        <div className="h-10 w-10 rounded-xl bg-white shadow-card flex items-center justify-center overflow-hidden border border-cream/80">
+        <div className="h-10 w-10 rounded-2xl bg-secondarySoft shadow-card flex items-center justify-center overflow-hidden border border-borderSoft/80">
           <img
             src="/icons/icon-192.png"
             alt="Helatte"
@@ -46,7 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ current, onSelect }) => {
 
         <div>
           <p className="text-lg font-semibold">Helatte POS</p>
-          <p className="text-sm text-coffee/70">Sucursal única</p>
+          <p className="text-sm text-textMuted">Sucursal única</p>
         </div>
       </div>
 
@@ -57,17 +57,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ current, onSelect }) => {
             <button
               key={key}
               onClick={() => onSelect(key)}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left font-medium transition border border-transparent
-                ${active ? 'bg-blush/60 text-coffee border-blush' : 'hover:bg-cream'}`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium transition-all border ${
+                active
+                  ? 'bg-primarySoft text-coffee border-primary/20 shadow-[0_6px_18px_rgba(232,90,155,0.14)]'
+                  : 'text-textMuted border-transparent hover:bg-secondarySoft hover:text-coffee'
+              }`}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className={`h-5 w-5 ${active ? 'text-primary' : 'text-textMuted'}`} />
               {label}
             </button>
           );
         })}
       </nav>
 
-      <div className="text-xs text-coffee/60 px-2">Hecho para flujo rápido y estable.</div>
+      <div className="text-xs text-textMuted px-2">Hecho para flujo rápido y estable.</div>
     </aside>
   );
 };
