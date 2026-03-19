@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ClipboardList, Plus, Printer, RefreshCcw, Save } from 'lucide-react';
+import type { Product } from '../../../preload';
 import type { ProductionPlanItem, ProductionPlanResponse } from '../../../preload';
+import { buildProductLabel, buildProductMeta } from '../utils/productLabels';
 
 type EditableProductionItem = ProductionPlanItem & {
   localId: string;
@@ -44,6 +46,7 @@ const buildManualRow = (): EditableProductionItem => ({
 export default function Produccion() {
   const [fecha, setFecha] = useState(todayInput());
   const [items, setItems] = useState<EditableProductionItem[]>([]);
+  const [productosCatalogo, setProductosCatalogo] = useState<Product[]>([]);
   const [notas, setNotas] = useState('');
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -86,6 +89,14 @@ export default function Produccion() {
 
   useEffect(() => {
     void cargarPlan(todayInput());
+    void (async () => {
+      try {
+        const catalogo = await window.helatte.listarCatalogo();
+        setProductosCatalogo(catalogo.productos ?? []);
+      } catch (caughtError) {
+        console.error(caughtError);
+      }
+    })();
   }, []);
 
   const reconsolidar = async () => {
@@ -123,6 +134,27 @@ export default function Produccion() {
     );
   };
 
+  const selectProduct = (localId: string, productIdRaw: string) => {
+    const productId = Number(productIdRaw);
+    const product = productosCatalogo.find((candidate) => candidate.id === productId);
+    if (!product) {
+      updateItem(localId, {
+        productId: null,
+        nombre: '',
+        presentacion: '',
+        esManual: true
+      });
+      return;
+    }
+
+    updateItem(localId, {
+      productId: product.id,
+      nombre: buildProductLabel(product),
+      presentacion: product.presentacion,
+      esManual: false
+    });
+  };
+
   const addManualRow = () => {
     setItems((current) => [...current, { ...buildManualRow(), orden: current.length }]);
   };
@@ -145,6 +177,11 @@ export default function Produccion() {
         esManual: item.esManual
       })),
     [items]
+  );
+
+  const productosPorId = useMemo(
+    () => new Map(productosCatalogo.map((producto) => [producto.id, producto])),
+    [productosCatalogo]
   );
 
   const guardar = async () => {
@@ -246,11 +283,11 @@ export default function Produccion() {
               <p className="text-sm text-text/60">
                 {metadata.basedOnWholesaleSales
                   ? `Base calculada desde ${metadata.wholesaleSalesCount} venta(s) mayoreo para ${fecha}.`
-                  : 'Sin ventas mayoreo para la fecha; captura la producción manualmente.'}
+                  : 'Sin ventas mayoreo para la fecha; agrega productos terminados del catálogo.'}
               </p>
             </div>
             <button className="btn" onClick={addManualRow}>
-              <Plus size={16} /> Agregar renglón manual
+              <Plus size={16} /> Agregar producto terminado
             </button>
           </div>
 
@@ -270,40 +307,44 @@ export default function Produccion() {
                 {items.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-sm text-text/55">
-                      No hay renglones todavía. Usa “Agregar renglón manual” o “Reconsolidar”.
+                      No hay renglones todavía. Usa “Agregar producto terminado” o “Reconsolidar”.
                     </td>
                   </tr>
                 ) : (
                   items.map((item) => {
                     const ajuste = Number(item.cantidadFinal || 0) - Number(item.cantidadBase || 0);
+                    const selectedProduct = item.productId ? productosPorId.get(item.productId) : null;
                     return (
                       <tr key={item.localId}>
                         <td>
-                          {item.esManual ? (
-                            <input
-                              className="input"
-                              placeholder="Nombre del producto"
-                              value={item.nombre}
-                              onChange={(event) => updateItem(item.localId, { nombre: event.target.value })}
-                            />
-                          ) : (
-                            <div>
-                              <p className="font-medium text-text">{item.nombre}</p>
-                              <p className="text-xs text-text/55">Consolidado automáticamente</p>
-                            </div>
-                          )}
+                          <div className="space-y-2">
+                            <select
+                              className="input min-w-[280px]"
+                              value={item.productId ?? ''}
+                              onChange={(event) => selectProduct(item.localId, event.target.value)}
+                            >
+                              <option value="">Selecciona producto terminado</option>
+                              {productosCatalogo.map((producto) => (
+                                <option key={producto.id} value={producto.id}>
+                                  {buildProductLabel(producto)}
+                                </option>
+                              ))}
+                            </select>
+                            {selectedProduct ? (
+                              <div>
+                                <p className="font-medium text-text">{buildProductLabel(selectedProduct)}</p>
+                                <p className="text-xs text-text/55">
+                                  {item.cantidadBase > 0 ? 'Consolidado desde ventas mayoreo' : 'Producto ligado al catálogo e inventario'}
+                                  {buildProductMeta(selectedProduct) ? ` · ${buildProductMeta(selectedProduct)}` : ''}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-blushDeep">Selecciona un producto del catálogo para conservar la fuente única de verdad.</p>
+                            )}
+                          </div>
                         </td>
                         <td>
-                          {item.esManual ? (
-                            <input
-                              className="input"
-                              placeholder="pieza, litro, vaso..."
-                              value={item.presentacion}
-                              onChange={(event) => updateItem(item.localId, { presentacion: event.target.value })}
-                            />
-                          ) : (
-                            <span className="text-sm text-text/75">{item.presentacion}</span>
-                          )}
+                          <span className="text-sm text-text/75">{selectedProduct?.presentacion ?? item.presentacion ?? '—'}</span>
                         </td>
                         <td className="text-center align-middle font-medium">{item.cantidadBase}</td>
                         <td className="text-center align-middle">

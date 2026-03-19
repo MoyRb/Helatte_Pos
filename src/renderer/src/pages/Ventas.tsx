@@ -9,6 +9,7 @@ import type {
   PosSaleType,
   Product
 } from '../../../preload';
+import { buildProductLabel, buildProductMeta, buildProductName } from '../utils/productLabels';
 
 const currency = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -158,7 +159,7 @@ export default function Ventas() {
       const existe = prev.find((p) => p.id === id);
       const nuevaCantidad = (existe?.qty ?? 0) + 1;
       if (nuevaCantidad > stockDisponible(prod)) {
-        setError(`Stock insuficiente para ${prod.sabor?.nombre ?? prod.presentacion}`);
+        setError(`Stock insuficiente para ${buildProductLabel(prod)}`);
         return prev;
       }
       if (existe) return prev.map((p) => (p.id === id ? { ...p, qty: nuevaCantidad } : p));
@@ -176,7 +177,7 @@ export default function Ventas() {
           if (p.id !== id) return p;
           const nuevaCantidad = Math.max(0, p.qty + delta);
           if (nuevaCantidad > stockDisponible(prod)) {
-            setError(`Stock insuficiente para ${prod.sabor?.nombre ?? prod.presentacion}`);
+            setError(`Stock insuficiente para ${buildProductLabel(prod)}`);
             return p;
           }
           return { ...p, qty: nuevaCantidad };
@@ -317,8 +318,8 @@ export default function Ventas() {
                     p.stock <= 0 ? 'opacity-50' : ''
                   }`}
                 >
-                  <p className="font-semibold">{p.sabor?.nombre ?? p.presentacion}</p>
-                  <p className="text-xs text-text/65 capitalize">{p.tipo.nombre}</p>
+                  <p className="font-semibold">{buildProductName(p)}</p>
+                  <p className="text-xs text-text/65">{buildProductMeta(p) || p.presentacion}</p>
                   <p className="text-sm font-medium">{formatMoney(precioActivo)}</p>
                   <p className="text-[11px] text-text/55">
                     {usandoPrecioMayoreo ? 'Precio mayoreo aplicado' : tipoVenta === 'MAYOREO' ? 'Usando precio normal como fallback' : 'Precio mostrador'}
@@ -401,8 +402,8 @@ export default function Ventas() {
               <div key={item.id} className="bg-sky/18 rounded-lg px-3 py-2 space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-semibold">{sabor}</p>
-                    <p className="text-xs text-text/65 capitalize">{producto.tipo.nombre}</p>
+                    <p className="font-semibold">{buildProductName({ ...producto, sabor: { ...producto.sabor, nombre: sabor } })}</p>
+                    <p className="text-xs text-text/65">{buildProductMeta(producto) || producto.presentacion}</p>
                     <p className="text-xs text-text/55">Unitario: {formatMoney(precioUnitario)}</p>
                   </div>
                   <p className="text-right font-semibold">{formatMoney(subtotalLinea)}</p>
