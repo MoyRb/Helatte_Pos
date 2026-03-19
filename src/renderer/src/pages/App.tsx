@@ -25,12 +25,12 @@ export default function App() {
   const year = useMemo(() => new Date().getFullYear(), []);
   return (
     <div className="flex h-screen bg-background text-texto">
-      <aside className="w-64 bg-surface/80 backdrop-blur border-r border-secondary/70 p-4 flex flex-col">
+      <aside className="w-64 bg-white/70 backdrop-blur border-r border-borderSoft/80 p-4 flex flex-col shadow-[8px_0_30px_rgba(47,49,51,0.05)]">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-full bg-primary shadow-inner" />
+          <div className="h-10 w-10 rounded-2xl bg-butter/35 border border-borderSoft/80 shadow-inner" />
           <div>
             <p className="font-semibold text-lg">Helatte POS</p>
-            <p className="text-sm text-gray-600">Nevería &amp; Paletería</p>
+            <p className="text-sm text-text/60">Nevería &amp; Paletería</p>
           </div>
         </div>
         <nav className="flex-1 space-y-1">
@@ -41,7 +41,7 @@ export default function App() {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive ? 'bg-primary/70 text-black' : 'hover:bg-primary/30'}`
+                  `flex items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-all ${isActive ? 'border-blush/45 bg-blush/28 text-text shadow-sm' : 'border-transparent text-text/68 hover:bg-sky/18 hover:text-text'}`
                 }
               >
                 <Icon size={18} />
@@ -50,9 +50,9 @@ export default function App() {
             );
           })}
         </nav>
-        <p className="text-xs text-gray-500">© {year} Helatte</p>
+        <p className="text-xs text-text/50">© {year} Helatte</p>
       </aside>
-      <main className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-surface to-background">
+      <main className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-ivory via-white/40 to-sky/10">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/ventas" element={<Ventas />} />

@@ -3,7 +3,8 @@ import { RefreshCcw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { DashboardSummary } from '../../../preload';
 
-const pastel = ['#F72585', '#FFD6E7', '#111111', '#FF5FA2'];
+const pastel = ['#A7CCE5', '#B6D8B8', '#DF9FC3', '#E7E7AE'];
+const chartTheme = { grid: '#D9DDD6', text: '#6B7280', line: '#DF9FC3', barPrimary: '#A7CCE5', barSecondary: '#B6D8B8' };
 
 const money = (value: number) =>
   value.toLocaleString('es-MX', {
@@ -47,11 +48,11 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-gray-600">Indicadores generales (solo lectura)</p>
+          <p className="text-sm text-text/65">Indicadores generales (solo lectura)</p>
         </div>
         <button
           onClick={cargar}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/60 bg-white hover:bg-primary/20 text-sm"
+          className="btn btn-secondary"
         >
           <RefreshCcw size={16} /> Recargar
         </button>
@@ -66,23 +67,23 @@ export default function Dashboard() {
       </div>
 
       {cargando ? (
-        <p className="text-sm text-gray-600">Cargando información...</p>
+        <p className="text-sm text-text/65">Cargando información...</p>
       ) : tieneContenido ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="card p-4 lg:col-span-2">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Ingresos vs egresos (7 días)</h3>
-                <span className="text-xs text-gray-500">Fuente: movimientos de caja</span>
+                <span className="text-xs text-text/55">Fuente: movimientos de caja</span>
               </div>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={flujoChart}>
-                  <XAxis dataKey="fecha" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => money(value)} />
-                  <Legend />
-                  <Bar dataKey="ingresos" name="Ingresos" fill="#F72585" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="egresos" name="Egresos" fill="#111111" radius={[6, 6, 0, 0]} />
+                  <XAxis dataKey="fecha" tick={{ fill: chartTheme.text, fontSize: 12 }} axisLine={{ stroke: chartTheme.grid }} tickLine={{ stroke: chartTheme.grid }} />
+                  <YAxis tick={{ fill: chartTheme.text, fontSize: 12 }} axisLine={{ stroke: chartTheme.grid }} tickLine={{ stroke: chartTheme.grid }} />
+                  <Tooltip formatter={(value: number) => money(value)} contentStyle={{ borderRadius: 16, borderColor: chartTheme.grid, backgroundColor: 'rgba(249,247,240,0.96)', color: '#2F3133' }} />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: chartTheme.text }} />
+                  <Bar dataKey="ingresos" name="Ingresos" fill={chartTheme.barPrimary} radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="egresos" name="Egresos" fill={chartTheme.barSecondary} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -98,7 +99,7 @@ export default function Dashboard() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex justify-between text-sm text-gray-600 px-1">
+              <div className="flex justify-between text-sm text-text/65 px-1">
                 {refrisChart.map((item) => (
                   <div key={item.label} className="flex items-center gap-2">
                     <span
@@ -148,7 +149,7 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-gray-600">Sin información para mostrar.</p>
+        <p className="text-sm text-text/65">Sin información para mostrar.</p>
       )}
     </div>
   );
@@ -157,7 +158,7 @@ export default function Dashboard() {
 function DashboardCard({ title, value }: { title: string; value: string | number }) {
   return (
     <div className="card p-4">
-      <p className="text-sm text-gray-600">{title}</p>
+      <p className="text-sm text-text/65">{title}</p>
       <p className="text-2xl font-semibold">{value}</p>
     </div>
   );
@@ -176,20 +177,20 @@ function DataCard({
     <div className="card p-4 space-y-3">
       <div>
         <h3 className="font-semibold">{title}</h3>
-        {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-text/55">{subtitle}</p>}
       </div>
       <div className="space-y-2">
         {items.map((item, idx) => (
           <div
             key={`${item.primary}-${idx}`}
-            className="flex items-center justify-between bg-secondary/40 rounded-lg px-3 py-2 text-sm"
+            className="flex items-center justify-between rounded-xl border border-borderSoft/80 bg-sky/12 px-3 py-2 text-sm"
           >
             <div>
               <p className="font-semibold">{item.primary}</p>
-              {item.secondary && <p className="text-xs text-gray-600">{item.secondary}</p>}
+              {item.secondary && <p className="text-xs text-text/65">{item.secondary}</p>}
             </div>
             <div className="text-right">
-              {item.badge && <p className="text-xs text-gray-600">{item.badge}</p>}
+              {item.badge && <p className="text-xs text-text/65">{item.badge}</p>}
               <p className="font-semibold">{item.value}</p>
             </div>
           </div>

@@ -277,16 +277,16 @@ export default function Clientes() {
         </button>
       </div>
 
-      {mensaje && <p className="text-sm text-green-700">{mensaje}</p>}
-      {errorActivo && <p className="text-sm text-red-600">{errorActivo}</p>}
+      {mensaje && <p className="text-sm text-mintDeep">{mensaje}</p>}
+      {errorActivo && <p className="text-sm text-blushDeep">{errorActivo}</p>}
 
       <div className="card p-4">
         {cargando ? (
-          <p className="text-sm text-gray-500">Cargando clientes...</p>
+          <p className="text-sm text-text/55">Cargando clientes...</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table">
             <thead>
-              <tr className="text-left text-gray-600">
+              <tr className="text-left text-text/65">
                 <th>Nombre</th>
                 <th>Teléfono</th>
                 <th>Límite</th>
@@ -298,7 +298,7 @@ export default function Clientes() {
             </thead>
             <tbody>
               {clientes.map((c) => (
-                <tr key={c.id} className="border-b border-secondary/50">
+                <tr key={c.id} className="border-b border-borderSoft/80">
                   <td className="py-1">{c.nombre}</td>
                   <td>{c.telefono ?? '—'}</td>
                   <td>${c.limite.toFixed(2)}</td>
@@ -306,10 +306,10 @@ export default function Clientes() {
                   <td className="capitalize">{c.estado}</td>
                   <td>{c.permiteMayoreo ? 'Sí' : 'No'}</td>
                   <td className="space-x-2 text-right">
-                    <button className="text-primary text-sm" onClick={() => abrirEditar(c)}>
+                    <button className="text-blushDeep text-sm" onClick={() => abrirEditar(c)}>
                       Editar
                     </button>
-                    <button className="text-sm text-gray-700" onClick={() => toggleEstado(c)}>
+                    <button className="text-sm text-text/75" onClick={() => toggleEstado(c)}>
                       {c.estado === 'activo' ? 'Desactivar' : 'Activar'}
                     </button>
                   </td>
@@ -321,13 +321,13 @@ export default function Clientes() {
       </div>
 
       {mostrandoModal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20">
-          <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-lg space-y-3">
+        <div className="fixed inset-0 bg-text/18 flex items-center justify-center z-20">
+          <div className="modal-panel p-5 w-full max-w-lg space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold">{editando ? 'Editar cliente' : 'Nuevo cliente'}</h4>
               <button onClick={cerrarModal}>Cerrar</button>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-blushDeep">{error}</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="flex flex-col text-sm gap-1">
                 Nombre
@@ -386,21 +386,21 @@ export default function Clientes() {
               </label>
             </div>
             {editando ? (
-              <div className="border-t border-secondary/50 pt-3 space-y-2">
+              <div className="border-t border-borderSoft/80 pt-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <h5 className="font-semibold text-sm">Refris asignados</h5>
-                  <button className="text-primary text-sm" onClick={cargarRefrisDisponibles} disabled={guardandoAsignacion}>
+                  <button className="text-blushDeep text-sm" onClick={cargarRefrisDisponibles} disabled={guardandoAsignacion}>
                     Asignar refri
                   </button>
                 </div>
                 {cargandoAsignaciones ? (
-                  <p className="text-xs text-gray-500">Cargando asignaciones...</p>
+                  <p className="text-xs text-text/55">Cargando asignaciones...</p>
                 ) : asignacionesActivas.length === 0 ? (
-                  <p className="text-xs text-gray-600">Este cliente no tiene refris asignados.</p>
+                  <p className="text-xs text-text/65">Este cliente no tiene refris asignados.</p>
                 ) : (
-                  <table className="w-full text-xs">
+                  <table className="table text-xs">
                     <thead>
-                      <tr className="text-left text-gray-600">
+                      <tr className="text-left text-text/65">
                         <th>Modelo</th>
                         <th>Serie</th>
                         <th>Ubicación</th>
@@ -412,7 +412,7 @@ export default function Clientes() {
                     </thead>
                     <tbody>
                       {asignacionesActivas.map((a) => (
-                        <tr key={a.id} className="border-b border-secondary/50">
+                        <tr key={a.id} className="border-b border-borderSoft/80">
                           <td className="py-1">{a.asset.modelo}</td>
                           <td>{a.asset.serie}</td>
                           <td>{a.ubicacion}</td>
@@ -421,7 +421,7 @@ export default function Clientes() {
                           <td>{formatearDinero(a.renta)}</td>
                           <td className="text-right">
                             <button
-                              className="text-red-600"
+                              className="text-blushDeep"
                               onClick={() => eliminarAsignacion(a.id)}
                               disabled={eliminandoAsignacionId === a.id}
                             >
@@ -433,16 +433,16 @@ export default function Clientes() {
                     </tbody>
                   </table>
                 )}
-                <div className="border-t border-secondary/50 pt-3 space-y-2">
+                <div className="border-t border-borderSoft/80 pt-3 space-y-2">
                   <h5 className="font-semibold text-sm">Historial de refris</h5>
                   {cargandoAsignaciones ? (
-                    <p className="text-xs text-gray-500">Cargando historial...</p>
+                    <p className="text-xs text-text/55">Cargando historial...</p>
                   ) : historialAsignaciones.length === 0 ? (
-                    <p className="text-xs text-gray-600">No hay historial de refris para este cliente.</p>
+                    <p className="text-xs text-text/65">No hay historial de refris para este cliente.</p>
                   ) : (
-                    <table className="w-full text-xs">
+                    <table className="table text-xs">
                       <thead>
-                        <tr className="text-left text-gray-600">
+                        <tr className="text-left text-text/65">
                           <th>Modelo</th>
                           <th>Serie</th>
                           <th>Ubicación</th>
@@ -452,7 +452,7 @@ export default function Clientes() {
                       </thead>
                       <tbody>
                         {historialAsignaciones.map((a) => (
-                          <tr key={a.id} className="border-b border-secondary/50">
+                          <tr key={a.id} className="border-b border-borderSoft/80">
                             <td className="py-1">{a.asset.modelo}</td>
                             <td>{a.asset.serie}</td>
                             <td>{a.ubicacion}</td>
@@ -466,7 +466,7 @@ export default function Clientes() {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-gray-600 border-t border-secondary/50 pt-3">
+              <p className="text-xs text-text/65 border-t border-borderSoft/80 pt-3">
                 Guarda el cliente para asignar un refri.
               </p>
             )}
@@ -477,8 +477,8 @@ export default function Clientes() {
         </div>
       )}
       {mostrandoModalAsignacion && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-30">
-          <div className="bg-white rounded-lg shadow-xl p-4 w-full max-w-md space-y-3">
+        <div className="fixed inset-0 bg-text/24 flex items-center justify-center z-30">
+          <div className="modal-panel p-4 w-full max-w-md space-y-3">
             <div className="flex items-center justify-between">
               <h5 className="font-semibold">Asignar refri</h5>
               <button onClick={() => setMostrandoModalAsignacion(false)} className="text-sm">
@@ -486,7 +486,7 @@ export default function Clientes() {
               </button>
             </div>
             {refrisDisponibles.length === 0 ? (
-              <p className="text-sm text-gray-600">No hay refris disponibles para asignar.</p>
+              <p className="text-sm text-text/65">No hay refris disponibles para asignar.</p>
             ) : (
               <>
                 <label className="flex flex-col text-sm gap-1">
@@ -546,7 +546,7 @@ export default function Clientes() {
                   </label>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button className="px-3 py-2 rounded border" onClick={() => setMostrandoModalAsignacion(false)}>
+                  <button className="btn btn-ghost px-3 py-2" onClick={() => setMostrandoModalAsignacion(false)}>
                     Cancelar
                   </button>
                   <button className="btn px-3 py-2" onClick={guardarAsignacion} disabled={guardandoAsignacion}>
