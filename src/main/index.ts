@@ -205,7 +205,7 @@ const BRAND_DEFINITIONS = [
   {
     slug: 'las-purepechas',
     nombre: 'Las Purepechas',
-    subtitulo: 'Helados y antojitos fríos',
+    subtitulo: 'Base para helado y aguas frescas',
     logoPath: 'brands/las-purepechas-logo.svg',
     folioPrefix: 'LPR'
   }

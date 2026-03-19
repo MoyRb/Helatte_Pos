@@ -35,13 +35,13 @@ const upsertBrands = async (): Promise<Record<'helatte' | 'las-purepechas', Bran
     where: { slug: 'las-purepechas' },
     update: {
       nombre: 'Las Purepechas',
-      subtitulo: 'Helados y antojitos fríos',
+      subtitulo: 'Base para helado y aguas frescas',
       logoPath: 'brands/las-purepechas-logo.svg'
     },
     create: {
       slug: 'las-purepechas',
       nombre: 'Las Purepechas',
-      subtitulo: 'Helados y antojitos fríos',
+      subtitulo: 'Base para helado y aguas frescas',
       logoPath: 'brands/las-purepechas-logo.svg'
     }
   });
