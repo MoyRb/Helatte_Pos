@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ShoppingCart, Minus, Plus, CheckCircle2, AlertTriangle, Printer } from 'lucide-react';
-import type { Customer, Flavor, PosDiscountType, PosSaleReceipt, PosSaleType, Product } from '../../../preload';
+import type {
+  Customer,
+  Flavor,
+  PosDiscountType,
+  PosSaleReceipt,
+  PosSaleSummary,
+  PosSaleType,
+  Product
+} from '../../../preload';
 
 const currency = new Intl.NumberFormat('es-MX', {
   style: 'currency',
   currency: 'MXN'
 });
-
-const discountLabels: Record<PosDiscountType, string> = {
-  ninguno: 'Sin descuento',
-  porcentaje: 'Porcentaje',
-  monto: 'Monto fijo'
-};
 
 const saleTypeLabels: Record<PosSaleType, string> = {
   MOSTRADOR: 'Mostrador',
@@ -47,89 +49,6 @@ const calculateDiscount = (subtotal: number, type: PosDiscountType, rawValue: st
   return { value: Number(value.toFixed(2)), error: '' };
 };
 
-const buildPrintableHtml = (receipt: PosSaleReceipt) => {
-  const discountDescription =
-    receipt.descuentoTipo === 'porcentaje'
-      ? `${receipt.descuentoTipo} (${receipt.descuentoValor > 0 && receipt.subtotal > 0 ? `${((receipt.descuentoValor / receipt.subtotal) * 100).toFixed(2)}%` : '0%'})`
-      : discountLabels[receipt.descuentoTipo];
-
-  const rows = receipt.items
-    .map(
-      (item) => `
-        <tr>
-          <td>${item.nombre} <span style="color:#666; font-size:12px;">(${item.presentacion})</span></td>
-          <td style="text-align:center;">${item.cantidad}</td>
-          <td style="text-align:right;">${formatMoney(item.precioUnitario)}</td>
-          <td style="text-align:right;">${formatMoney(item.subtotalLinea)}</td>
-        </tr>
-      `
-    )
-    .join('');
-
-  return `
-    <!doctype html>
-    <html lang="es">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Remisión ${receipt.folio}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-          h1, h2, p { margin: 0; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-          .meta { margin-top: 8px; line-height: 1.6; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border-bottom: 1px solid #ddd; padding: 10px 8px; font-size: 14px; }
-          th { text-align: left; background: #f8f8f8; }
-          .totals { margin-top: 20px; margin-left: auto; width: 320px; }
-          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; }
-          .total { font-weight: 700; font-size: 18px; border-top: 1px solid #111; margin-top: 8px; padding-top: 10px; }
-          .signature { margin-top: 56px; display: flex; justify-content: space-between; gap: 24px; }
-          .signature-box { flex: 1; border-top: 1px solid #111; padding-top: 10px; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <h1>Helatte POS / Helatte</h1>
-            <div class="meta">
-              <p><strong>Folio:</strong> ${receipt.folio}</p>
-              <p><strong>Fecha y hora:</strong> ${new Date(receipt.fecha).toLocaleString('es-MX')}</p>
-              <p><strong>Tipo de venta:</strong> ${saleTypeLabels[receipt.tipoVenta]}</p>
-              <p><strong>Cliente:</strong> ${receipt.customerName ?? 'N/A'}</p>
-            </div>
-          </div>
-          <div>
-            <h2>Orden / Remisión</h2>
-          </div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th style="text-align:center;">Cantidad</th>
-              <th style="text-align:right;">Precio unitario</th>
-              <th style="text-align:right;">Subtotal línea</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-
-        <div class="totals">
-          <div class="totals-row"><span>Subtotal</span><strong>${formatMoney(receipt.subtotal)}</strong></div>
-          <div class="totals-row"><span>Descuento</span><strong>${discountDescription} - ${formatMoney(receipt.descuentoValor)}</strong></div>
-          <div class="totals-row total"><span>Total</span><strong>${formatMoney(receipt.total)}</strong></div>
-        </div>
-
-        <div class="signature">
-          <div class="signature-box">Entregó</div>
-          <div class="signature-box">Recibió / Firma</div>
-        </div>
-      </body>
-    </html>
-  `;
-};
-
 export default function Ventas() {
   const [productos, setProductos] = useState<Product[]>([]);
   const [sabores, setSabores] = useState<Flavor[]>([]);
@@ -145,6 +64,8 @@ export default function Ventas() {
   const [descuentoTipo, setDescuentoTipo] = useState<PosDiscountType>('ninguno');
   const [descuentoValor, setDescuentoValor] = useState('0');
   const [ultimaVenta, setUltimaVenta] = useState<PosSaleReceipt | null>(null);
+  const [ventasRecientes, setVentasRecientes] = useState<PosSaleSummary[]>([]);
+  const [imprimiendoSaleId, setImprimiendoSaleId] = useState<number | null>(null);
   const stockDisponible = (prod: Product) => (Number.isFinite(prod.stock) ? prod.stock : Number.MAX_SAFE_INTEGER);
 
   const cargarCatalogo = async () => {
@@ -168,9 +89,15 @@ export default function Ventas() {
     }
   };
 
+  const cargarVentasRecientes = async () => {
+    const data = await window.helatte.listarVentasPOS(8);
+    setVentasRecientes(data);
+  };
+
   useEffect(() => {
     cargarCatalogo();
     cargarClientes();
+    void cargarVentasRecientes();
   }, []);
 
   useEffect(() => {
@@ -258,20 +185,21 @@ export default function Ventas() {
     );
   };
 
-  const imprimirRemision = (receipt: PosSaleReceipt) => {
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
-    if (!printWindow) {
-      setError('No se pudo abrir la ventana de impresión.');
-      return;
+  const imprimirRemision = async (saleId: number) => {
+    setError('');
+    setImprimiendoSaleId(saleId);
+    try {
+      await window.helatte.imprimirRemisionVenta(saleId);
+    } catch (caughtError) {
+      const printError =
+        caughtError instanceof Error
+          ? caughtError
+          : new Error('No se pudo abrir la ventana de impresión.');
+      setError(printError.message);
+      throw printError;
+    } finally {
+      setImprimiendoSaleId((current) => (current === saleId ? null : current));
     }
-
-    printWindow.document.open();
-    printWindow.document.write(buildPrintableHtml(receipt));
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.onload = () => {
-      printWindow.print();
-    };
   };
 
   const cobrar = async () => {
@@ -309,15 +237,21 @@ export default function Ventas() {
 
       setUltimaVenta(resultado);
       setCarrito([]);
-      setMensaje(
-        resultado.tipoVenta === 'MAYOREO'
-          ? `Venta mayoreo ${resultado.folio} registrada correctamente.`
-          : 'Venta registrada correctamente.'
-      );
       setClienteId('');
       setDescuentoTipo('ninguno');
       setDescuentoValor('0');
-      await cargarCatalogo();
+      await Promise.all([cargarCatalogo(), cargarVentasRecientes()]);
+      try {
+        await imprimirRemision(resultado.saleId);
+        setMensaje(
+          resultado.tipoVenta === 'MAYOREO'
+            ? `Venta mayoreo ${resultado.folio} registrada correctamente y la remisión se abrió para impresión.`
+            : `Venta ${resultado.folio} registrada correctamente y la remisión se abrió para impresión.`
+        );
+      } catch {
+        setMensaje(`Venta ${resultado.folio} registrada correctamente.`);
+        setError('La venta se guardó, pero no se pudo abrir la impresión automáticamente.');
+      }
     } catch (caughtError) {
       console.error(caughtError);
       setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar la venta');
@@ -521,16 +455,53 @@ export default function Ventas() {
             {guardando ? 'Guardando...' : 'Cobrar / Guardar venta'}
           </button>
 
-          {ultimaVenta?.tipoVenta === 'MAYOREO' && (
+          {ultimaVenta && (
             <button
               className="btn btn-secondary w-full py-2.5 flex items-center justify-center gap-2"
-              onClick={() => imprimirRemision(ultimaVenta)}
+              onClick={() => imprimirRemision(ultimaVenta.saleId)}
+              disabled={imprimiendoSaleId === ultimaVenta.saleId}
               type="button"
             >
               <Printer size={16} />
-              Imprimir orden / remisión
+              {imprimiendoSaleId === ultimaVenta.saleId ? 'Abriendo impresión...' : 'Reimprimir última remisión'}
             </button>
           )}
+
+          <div className="border-t border-borderSoft/80 pt-3 mt-3 space-y-3">
+            <div>
+              <h4 className="font-semibold">Ventas recientes</h4>
+              <p className="text-xs text-text/60">Reimpresión rápida desde POS.</p>
+            </div>
+            <div className="space-y-2 max-h-64 overflow-auto pr-1">
+              {ventasRecientes.length === 0 && <p className="text-sm text-text/55">Sin ventas recientes.</p>}
+              {ventasRecientes.map((venta) => (
+                <div
+                  key={venta.saleId}
+                  className="rounded-xl border border-borderSoft/80 bg-sky/12 px-3 py-3 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{venta.folio}</p>
+                      <p className="text-xs text-text/65">{new Date(venta.fecha).toLocaleString('es-MX')}</p>
+                      <p className="text-xs text-text/55">
+                        {saleTypeLabels[venta.tipoVenta]} · {venta.customerName ?? 'Público en general'} · {venta.pagoMetodo}
+                      </p>
+                    </div>
+                    <p className="font-semibold">{formatMoney(venta.total)}</p>
+                  </div>
+                  <button
+                    className="btn btn-secondary w-full py-2.5 flex items-center justify-center gap-2"
+                    onClick={() => imprimirRemision(venta.saleId)}
+                    disabled={imprimiendoSaleId === venta.saleId}
+                    type="button"
+                  >
+                    <Printer size={16} />
+                    {imprimiendoSaleId === venta.saleId ? 'Abriendo impresión...' : 'Imprimir / reimprimir'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

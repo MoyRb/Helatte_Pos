@@ -625,6 +625,545 @@ const obtenerPrecioVenta = (
   return producto.precio
 }
 
+const HELATTE_BUSINESS = {
+  nombre: 'Helatte',
+  giro: 'Nevería & Paletería'
+} as const
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2
+  }).format(value)
+
+const formatSaleDate = (value: Date) =>
+  new Intl.DateTimeFormat('es-MX', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(value)
+
+const getDayRange = (value: Date) => {
+  const start = new Date(value)
+  start.setHours(0, 0, 0, 0)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 1)
+  return { start, end }
+}
+
+const formatFolioDate = (value: Date) => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}${month}${day}`
+}
+
+const buildFriendlySaleFolio = async (
+  tx: Prisma.TransactionClient,
+  saleDate: Date
+): Promise<string> => {
+  const prefix = `HLT-${formatFolioDate(saleDate)}-`
+  const { start, end } = getDayRange(saleDate)
+  const lastSale = await tx.sale.findFirst({
+    where: {
+      fecha: {
+        gte: start,
+        lt: end
+      },
+      folio: {
+        startsWith: prefix
+      }
+    },
+    orderBy: { id: 'desc' },
+    select: { folio: true }
+  })
+
+  const lastSequence = lastSale?.folio
+    ? Number(lastSale.folio.slice(prefix.length))
+    : 0
+  const nextSequence = Number.isFinite(lastSequence) ? lastSequence + 1 : 1
+
+  return `${prefix}${String(nextSequence).padStart(4, '0')}`
+}
+
+const resolveReceiptLogoPath = () => {
+  const candidates = [
+    path.join(app.getAppPath(), 'src', 'renderer', 'public', 'logo.png'),
+    path.join(app.getAppPath(), 'dist', 'renderer', 'logo.png'),
+    path.join(__dirname, '../renderer/logo.png'),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'renderer', 'logo.png'),
+    path.join(process.resourcesPath, 'dist', 'renderer', 'logo.png')
+  ]
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null
+}
+
+const getReceiptLogoDataUrl = () => {
+  const logoPath = resolveReceiptLogoPath()
+  if (!logoPath) return null
+
+  try {
+    const encoded = fs.readFileSync(logoPath).toString('base64')
+    return `data:image/png;base64,${encoded}`
+  } catch (error) {
+    console.error('[print] No se pudo leer el logo para la remisión', error)
+    return null
+  }
+}
+
+type PosReceiptData = {
+  saleId: number
+  folio: string
+  fecha: string
+  tipoVenta: PosSaleType
+  customerId: number | null
+  customerName: string | null
+  subtotal: number
+  descuentoTipo: DiscountType
+  descuentoValor: number
+  total: number
+  pagoMetodo: string
+  items: {
+    productId: number
+    nombre: string
+    presentacion: string
+    cantidad: number
+    precioUnitario: number
+    subtotalLinea: number
+  }[]
+}
+
+const buildReceiptFromSaleRecord = (sale: {
+  id: number
+  folio: string
+  fecha: Date
+  tipoVenta: string
+  customerId: number | null
+  subtotal: number
+  descuentoTipo: string
+  descuentoValor: number
+  total: number
+  pagoMetodo: string
+  customer: { nombre: string } | null
+  items: {
+    productId: number
+    cantidad: number
+    precio: number
+    subtotalLinea: number
+    product: {
+      presentacion: string
+      tipo: { nombre: string }
+      sabor: { nombre: string }
+    }
+  }[]
+}): PosReceiptData => ({
+  saleId: sale.id,
+  folio: sale.folio,
+  fecha: sale.fecha.toISOString(),
+  tipoVenta: normalizarTipoVenta(sale.tipoVenta),
+  customerId: sale.customerId,
+  customerName: sale.customer?.nombre ?? null,
+  subtotal: sale.subtotal,
+  descuentoTipo: normalizarTipoDescuento(sale.descuentoTipo),
+  descuentoValor: sale.descuentoValor,
+  total: sale.total,
+  pagoMetodo: sale.pagoMetodo,
+  items: sale.items.map((item) => ({
+    productId: item.productId,
+    nombre: `${item.product.tipo.nombre} ${item.product.sabor.nombre}`.trim(),
+    presentacion: item.product.presentacion,
+    cantidad: item.cantidad,
+    precioUnitario: item.precio,
+    subtotalLinea: item.subtotalLinea
+  }))
+})
+
+const getPosReceiptBySaleId = async (
+  prismaClient: PrismaClient,
+  saleId: number
+): Promise<PosReceiptData> => {
+  const sale = await prismaClient.sale.findUnique({
+    where: { id: saleId },
+    include: {
+      items: {
+        include: {
+          product: {
+            include: {
+              tipo: true,
+              sabor: true
+            }
+          }
+        }
+      }
+    }
+  })
+
+  if (!sale) {
+    throw new Error('La venta seleccionada no existe.')
+  }
+
+  const customer = sale.customerId
+    ? await prismaClient.customer.findUnique({
+        where: { id: sale.customerId },
+        select: { nombre: true }
+      })
+    : null
+
+  return buildReceiptFromSaleRecord({
+    ...sale,
+    customer
+  })
+}
+
+const buildReceiptHtml = (receipt: PosReceiptData) => {
+  const logoDataUrl = getReceiptLogoDataUrl()
+  const fecha = formatSaleDate(new Date(receipt.fecha))
+  const discountLabel =
+    receipt.descuentoTipo === 'porcentaje' && receipt.subtotal > 0
+      ? `${((receipt.descuentoValor / receipt.subtotal) * 100).toFixed(2)}%`
+      : receipt.descuentoTipo === 'monto'
+        ? 'Monto fijo'
+        : 'Sin descuento'
+
+  const rows = receipt.items
+    .map(
+      (item) => `
+        <tr>
+          <td>
+            <div class="product-name">${escapeHtml(item.nombre)}</div>
+            <div class="product-meta">${escapeHtml(item.presentacion)}</div>
+          </td>
+          <td class="center">${item.cantidad}</td>
+          <td class="right">${formatCurrency(item.precioUnitario)}</td>
+          <td class="right">${formatCurrency(item.subtotalLinea)}</td>
+        </tr>
+      `
+    )
+    .join('')
+
+  const signatureSection =
+    receipt.tipoVenta === 'MAYOREO'
+      ? `
+        <div class="signature-grid">
+          <div class="signature-box">Entregó</div>
+          <div class="signature-box">Recibido / Firma</div>
+        </div>
+      `
+      : ''
+
+  return `<!doctype html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Remisión ${escapeHtml(receipt.folio)}</title>
+      <style>
+        :root {
+          color-scheme: light;
+          --ink: #2f3133;
+          --muted: #6b7280;
+          --line: #d9ddd6;
+          --accent: #df9fc3;
+          --accent-soft: rgba(223, 159, 195, 0.12);
+          --sky: #a7cce5;
+          --paper: #fffdfc;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          background: #f4f1ef;
+          color: var(--ink);
+          font-family: Inter, Arial, sans-serif;
+          padding: 24px;
+        }
+        .sheet {
+          width: 100%;
+          max-width: 860px;
+          margin: 0 auto;
+          background: var(--paper);
+          border: 1px solid rgba(217, 221, 214, 0.9);
+          border-radius: 24px;
+          padding: 28px 32px 32px;
+          box-shadow: 0 20px 60px rgba(47, 49, 51, 0.12);
+        }
+        .topbar {
+          display: flex;
+          justify-content: space-between;
+          gap: 24px;
+          align-items: flex-start;
+          padding-bottom: 20px;
+          border-bottom: 1px solid var(--line);
+        }
+        .brand {
+          display: flex;
+          gap: 16px;
+          align-items: center;
+        }
+        .logo {
+          width: 76px;
+          height: 76px;
+          border-radius: 20px;
+          border: 1px solid rgba(217, 221, 214, 0.9);
+          background: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          padding: 8px;
+        }
+        .logo img { width: 100%; height: 100%; object-fit: contain; }
+        .eyebrow {
+          display: inline-block;
+          background: var(--accent-soft);
+          color: #8f4471;
+          border-radius: 999px;
+          padding: 6px 12px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          margin-bottom: 10px;
+        }
+        h1, h2, p { margin: 0; }
+        h1 { font-size: 30px; line-height: 1.05; }
+        .subtitle { color: var(--muted); margin-top: 6px; }
+        .document-title {
+          text-align: right;
+        }
+        .document-title h2 {
+          font-size: 28px;
+          margin-bottom: 8px;
+        }
+        .folio {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(167, 204, 229, 0.7);
+          background: rgba(167, 204, 229, 0.16);
+          border-radius: 999px;
+          padding: 8px 14px;
+          font-weight: 700;
+        }
+        .meta-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 22px;
+        }
+        .meta-card {
+          border: 1px solid rgba(217, 221, 214, 0.9);
+          border-radius: 18px;
+          padding: 14px 16px;
+          background: white;
+        }
+        .meta-label {
+          font-size: 12px;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 6px;
+        }
+        .meta-value {
+          font-size: 15px;
+          font-weight: 600;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 24px;
+        }
+        thead th {
+          text-align: left;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--muted);
+          padding: 12px 10px;
+          background: rgba(167, 204, 229, 0.12);
+          border-bottom: 1px solid var(--line);
+        }
+        tbody td {
+          padding: 14px 10px;
+          border-bottom: 1px solid rgba(217, 221, 214, 0.7);
+          vertical-align: top;
+          font-size: 14px;
+        }
+        .product-name { font-weight: 600; margin-bottom: 4px; }
+        .product-meta { color: var(--muted); font-size: 12px; }
+        .right { text-align: right; }
+        .center { text-align: center; }
+        .summary {
+          margin-top: 22px;
+          margin-left: auto;
+          width: min(100%, 340px);
+          border: 1px solid rgba(217, 221, 214, 0.9);
+          border-radius: 20px;
+          padding: 18px 18px 14px;
+          background: white;
+        }
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 6px 0;
+          font-size: 14px;
+        }
+        .summary-row strong { font-weight: 700; }
+        .summary-row.total {
+          margin-top: 8px;
+          padding-top: 12px;
+          border-top: 1px solid var(--line);
+          font-size: 18px;
+        }
+        .notes {
+          margin-top: 24px;
+          padding: 16px 18px;
+          border-radius: 18px;
+          background: rgba(223, 159, 195, 0.08);
+          border: 1px dashed rgba(223, 159, 195, 0.5);
+          color: #5e5660;
+          font-size: 13px;
+        }
+        .signature-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 36px;
+          margin-top: 56px;
+        }
+        .signature-box {
+          padding-top: 12px;
+          border-top: 1px solid var(--ink);
+          text-align: center;
+          font-size: 13px;
+          color: var(--muted);
+        }
+        @media print {
+          body {
+            background: white;
+            padding: 0;
+          }
+          .sheet {
+            border: none;
+            border-radius: 0;
+            box-shadow: none;
+            max-width: none;
+            padding: 0.4in;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="sheet">
+        <section class="topbar">
+          <div class="brand">
+            <div class="logo">
+              ${
+                logoDataUrl
+                  ? `<img src="${logoDataUrl}" alt="Logo Helatte" />`
+                  : `<div style="font-weight:700;color:#8f4471;">HLT</div>`
+              }
+            </div>
+            <div>
+              <span class="eyebrow">Orden / Remisión</span>
+              <h1>${escapeHtml(HELATTE_BUSINESS.nombre)}</h1>
+              <p class="subtitle">${escapeHtml(HELATTE_BUSINESS.giro)}</p>
+            </div>
+          </div>
+          <div class="document-title">
+            <h2>Venta guardada</h2>
+            <div class="folio">${escapeHtml(receipt.folio)}</div>
+          </div>
+        </section>
+
+        <section class="meta-grid">
+          <article class="meta-card">
+            <div class="meta-label">Fecha y hora</div>
+            <div class="meta-value">${escapeHtml(fecha)}</div>
+          </article>
+          <article class="meta-card">
+            <div class="meta-label">Tipo de venta</div>
+            <div class="meta-value">${escapeHtml(receipt.tipoVenta === 'MAYOREO' ? 'Mayoreo' : 'Mostrador')}</div>
+          </article>
+          <article class="meta-card">
+            <div class="meta-label">Cliente</div>
+            <div class="meta-value">${escapeHtml(receipt.customerName ?? 'Público en general')}</div>
+          </article>
+          <article class="meta-card">
+            <div class="meta-label">Método de pago</div>
+            <div class="meta-value">${escapeHtml(receipt.pagoMetodo)}</div>
+          </article>
+        </section>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th class="center">Cantidad</th>
+              <th class="right">P. unitario</th>
+              <th class="right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <section class="summary">
+          <div class="summary-row"><span>Subtotal general</span><strong>${formatCurrency(receipt.subtotal)}</strong></div>
+          <div class="summary-row"><span>Descuento</span><strong>${escapeHtml(discountLabel)} · ${formatCurrency(receipt.descuentoValor)}</strong></div>
+          <div class="summary-row total"><span>Total final</span><strong>${formatCurrency(receipt.total)}</strong></div>
+        </section>
+
+        <section class="notes">
+          Documento generado automáticamente por Helatte POS para control interno y entrega de producto.
+        </section>
+
+        ${signatureSection}
+      </main>
+    </body>
+  </html>`
+}
+
+const openPrintPreviewWindow = async (receipt: PosReceiptData) => {
+  const parentWindow = mainWindow ?? (await createWindow())
+  const html = buildReceiptHtml(receipt)
+  const printWindow = new BrowserWindow({
+    width: 920,
+    height: 760,
+    title: `Remisión ${receipt.folio}`,
+    backgroundColor: '#FFF6FA',
+    autoHideMenuBar: true,
+    parent: parentWindow,
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: false
+    }
+  })
+
+  printWindow.once('ready-to-show', () => {
+    printWindow.show()
+    printWindow.focus()
+  })
+
+  await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+  setTimeout(() => {
+    if (printWindow.isDestroyed()) return
+    printWindow.webContents.print({
+      silent: false,
+      printBackground: true
+    })
+  }, 250)
+}
+
 /* =========================================================
    IPC HANDLERS – DASHBOARD
 ========================================================= */
@@ -1345,9 +1884,10 @@ safeHandle(
   async (_event, data: { items: { productId: number; cantidad: number }[]; metodo: string; cajeroId?: number }) => {
     const prisma = getPrisma()
     const cajeroId = data.cajeroId ?? (await getDefaultUserId(prisma))
-    const folio = `VENTA-${Date.now()}`
 
     return prisma.$transaction(async (tx) => {
+      const saleDate = new Date()
+      const folio = await buildFriendlySaleFolio(tx, saleDate)
       const productos = await tx.product.findMany({
         where: { id: { in: data.items.map((i) => i.productId) } },
         include: { sabor: true, tipo: true }
@@ -1362,6 +1902,7 @@ safeHandle(
       const sale = await tx.sale.create({
         data: {
           folio,
+          fecha: saleDate,
           cajeroId,
           tipoVenta: 'MOSTRADOR',
           subtotal: total,
@@ -1416,7 +1957,6 @@ safeHandle(
   ) => {
     const prisma = getPrisma()
     const cajeroId = await getDefaultUserId(prisma)
-    const folio = `POS-${Date.now()}`
     const tipoVenta = normalizarTipoVenta(data.tipoVenta)
     const descuentoTipo = normalizarTipoDescuento(data.descuentoTipo)
     const descuentoValor = Number(data.descuentoValor ?? 0)
@@ -1468,10 +2008,13 @@ safeHandle(
       const descuentoAplicado = calcularDescuento(subtotal, descuentoTipo, descuentoValor)
       const total = Number((subtotal - descuentoAplicado).toFixed(2))
       const pagoMetodo = data.customerId ? 'crédito' : 'efectivo'
+      const saleDate = new Date()
+      const folio = await buildFriendlySaleFolio(tx, saleDate)
 
       const sale = await tx.sale.create({
         data: {
           folio,
+          fecha: saleDate,
           cajeroId,
           customerId: data.customerId ?? null,
           tipoVenta,
@@ -1554,11 +2097,57 @@ safeHandle(
         tipoVenta,
         fecha: sale.fecha.toISOString(),
         customerName: customer?.nombre ?? null,
+        pagoMetodo,
         items: itemsVenta
       }
     })
   }
 )
+
+safeHandle('pos:ventasRecientes', async (_event, limit = 10) => {
+  const prisma = getPrisma()
+  const sales = await prisma.sale.findMany({
+    take: Math.min(Math.max(Number(limit) || 10, 1), 30),
+    orderBy: { fecha: 'desc' },
+    select: {
+      id: true,
+      folio: true,
+      fecha: true,
+      tipoVenta: true,
+      customerId: true,
+      total: true,
+      pagoMetodo: true
+    }
+  })
+
+  const customerIds = sales
+    .map((sale) => sale.customerId)
+    .filter((value): value is number => value !== null)
+  const customers = customerIds.length
+    ? await prisma.customer.findMany({
+        where: { id: { in: customerIds } },
+        select: { id: true, nombre: true }
+      })
+    : []
+  const customersById = new Map(customers.map((customer) => [customer.id, customer.nombre]))
+
+  return sales.map((sale) => ({
+    saleId: sale.id,
+    folio: sale.folio,
+    fecha: sale.fecha.toISOString(),
+    tipoVenta: normalizarTipoVenta(sale.tipoVenta),
+    customerName: sale.customerId ? customersById.get(sale.customerId) ?? null : null,
+    total: sale.total,
+    pagoMetodo: sale.pagoMetodo
+  }))
+})
+
+safeHandle('pos:imprimirRemision', async (_event, saleId: number) => {
+  const prisma = getPrisma()
+  const receipt = await getPosReceiptBySaleId(prisma, saleId)
+  await openPrintPreviewWindow(receipt)
+  return { ok: true }
+})
 
 safeHandle('refri:listar', async () => {
   const prisma = getPrisma()
