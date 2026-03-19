@@ -87,7 +87,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Nombre
             <input
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               required
@@ -96,7 +96,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium">
             Teléfono
             <input
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.phone}
               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
               placeholder="Opcional"
@@ -105,7 +105,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Dirección
             <input
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
               placeholder="Opcional"
@@ -114,7 +114,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium">
             Notas
             <input
-              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
               value={form.notes}
               onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
             />
@@ -161,7 +161,7 @@ export const ClientsPage: React.FC = () => {
                   <td className="py-3">
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                        client.active ? 'bg-mint/30 text-accent' : 'bg-blush/40 text-coffee'
+                        client.active ? 'bg-mint/35 text-mintDeep' : 'bg-butter/35 text-butterDeep'
                       }`}
                     >
                       {client.active ? (
@@ -179,13 +179,13 @@ export const ClientsPage: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(client)}
-                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
+                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25 text-xs font-semibold"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => deleteClient(client.id)}
-                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
+                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25 text-xs font-semibold"
                       >
                         Eliminar
                       </button>
@@ -212,13 +212,13 @@ export const ClientsPage: React.FC = () => {
             <span className="font-semibold">Refris del cliente</span>
             <div className="flex rounded-lg overflow-hidden border border-borderSoft text-xs font-semibold">
               <button
-                className={`px-3 py-1 ${showActiveOnly ? 'bg-mint/20 text-accent' : 'bg-surface text-coffee'}`}
+                className={`px-3 py-1 ${showActiveOnly ? 'bg-mint/35 text-mintDeep' : 'bg-surface text-coffee'}`}
                 onClick={() => setShowActiveOnly(true)}
               >
                 Activos
               </button>
               <button
-                className={`px-3 py-1 ${!showActiveOnly ? 'bg-mint/20 text-accent' : 'bg-surface text-coffee'}`}
+                className={`px-3 py-1 ${!showActiveOnly ? 'bg-mint/35 text-mintDeep' : 'bg-surface text-coffee'}`}
                 onClick={() => setShowActiveOnly(false)}
               >
                 Todos
@@ -274,7 +274,7 @@ export const ClientsPage: React.FC = () => {
                     <div className="flex flex-col gap-2 text-sm items-end">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          loan.status === 'entregado' ? 'bg-mint/30 text-accent' : 'bg-blush/40 text-coffee'
+                          loan.status === 'entregado' ? 'bg-mint/35 text-mintDeep' : 'bg-butter/35 text-butterDeep'
                         }`}
                       >
                         {loan.status === 'entregado' ? 'Activo' : 'Devuelto'}

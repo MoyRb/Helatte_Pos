@@ -119,14 +119,14 @@ export const PosPage: React.FC = () => {
             return (
               <div
                 key={product.id}
-                className={`card p-4 border border-borderSoft ${lowStock ? 'ring-1 ring-blush/60' : ''}`}
+                className={`card p-4 border border-borderSoft ${lowStock ? 'ring-1 ring-butter/70' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
                     <p className="font-semibold">{product.name}</p>
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        lowStock ? 'bg-blush/50 text-coffee' : 'bg-secondarySoft text-coffee/70'
+                        lowStock ? 'bg-butter/45 text-butterDeep' : 'bg-secondarySoft text-coffee/70'
                       }`}
                     >
                       Stock: {product.stock}
@@ -154,7 +154,7 @@ export const PosPage: React.FC = () => {
           {alert && (
             <span
               className={`text-sm px-3 py-1 rounded-full ${
-                alert.type === 'success' ? 'bg-mint/20 text-accent' : 'bg-blush/40 text-coffee'
+                alert.type === 'success' ? 'bg-mint/35 text-mintDeep' : 'bg-butter/35 text-butterDeep'
               }`}
             >
               {alert.text}
@@ -172,7 +172,7 @@ export const PosPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
+                  className="p-2 rounded-lg bg-secondarySoft hover:bg-sky/25"
                   onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                   aria-label="Disminuir"
                 >
@@ -180,7 +180,7 @@ export const PosPage: React.FC = () => {
                 </button>
                 <span className="w-8 text-center font-semibold">{item.quantity}</span>
                 <button
-                  className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
+                  className="p-2 rounded-lg bg-secondarySoft hover:bg-sky/25"
                   onClick={() => updateQuantity(item.productId, Math.min(item.quantity + 1, item.stock))}
                   aria-label="Aumentar"
                   disabled={item.quantity >= item.stock}

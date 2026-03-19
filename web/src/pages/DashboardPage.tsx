@@ -26,11 +26,13 @@ const formatShortDay = (date: Date) => {
 };
 
 const chartPalette = {
-  grid: '#E9D8E1',
-  axis: '#6F6870',
-  line: '#E85A9B',
-  barPrimary: '#E85A9B',
-  barSecondary: '#D94A8B',
+  grid: '#D9DDD6',
+  axis: '#6F7470',
+  line: '#DF9FC3',
+  barPrimary: '#A7CCE5',
+  barSecondary: '#B6D8B8',
+  surface: '#FFFCF8',
+  shadow: '0 16px 32px rgba(167, 204, 229, 0.18)',
 };
 
 const formatCurrencyTooltip = (value: number | string | undefined) => `$${Number(value ?? 0).toFixed(2)}`;
@@ -182,7 +184,7 @@ export const DashboardPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-coffee/70">Rango:</span>
-          <div className="bg-secondarySoft/70 border border-borderSoft rounded-lg p-1 inline-flex">
+          <div className="bg-butter/25 border border-borderSoft rounded-xl p-1 inline-flex">
             {(
               [
                 { label: '7 días', value: '7' },
@@ -242,8 +244,8 @@ export const DashboardPage: React.FC = () => {
                   contentStyle={{
                     borderRadius: '16px',
                     border: `1px solid ${chartPalette.grid}`,
-                    backgroundColor: '#FFFDFE',
-                    boxShadow: '0 14px 32px rgba(232, 90, 155, 0.12)',
+                    backgroundColor: chartPalette.surface,
+                    boxShadow: chartPalette.shadow,
                   }}
                 />
                 <Line
@@ -251,8 +253,8 @@ export const DashboardPage: React.FC = () => {
                   dataKey="total"
                   stroke={chartPalette.line}
                   strokeWidth={3}
-                  dot={{ r: 4, fill: chartPalette.line, stroke: '#FFFDFE', strokeWidth: 2 }}
-                  activeDot={{ r: 5, fill: chartPalette.line, stroke: '#FFFDFE', strokeWidth: 2 }}
+                  dot={{ r: 4, fill: chartPalette.line, stroke: chartPalette.surface, strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: chartPalette.line, stroke: chartPalette.surface, strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -263,7 +265,7 @@ export const DashboardPage: React.FC = () => {
         <div className="card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Top productos</h3>
-            <div className="bg-secondarySoft/70 border border-borderSoft rounded-lg p-1 inline-flex text-xs font-semibold">
+            <div className="bg-sky/15 border border-borderSoft rounded-xl p-1 inline-flex text-xs font-semibold">
               {(
                 [
                   { label: 'Por monto', value: 'amount' },
@@ -299,8 +301,8 @@ export const DashboardPage: React.FC = () => {
                     contentStyle={{
                       borderRadius: '16px',
                       border: `1px solid ${chartPalette.grid}`,
-                      backgroundColor: '#FFFDFE',
-                      boxShadow: '0 14px 32px rgba(232, 90, 155, 0.12)',
+                      backgroundColor: chartPalette.surface,
+                      boxShadow: chartPalette.shadow,
                     }}
                   />
                   <Bar
@@ -320,7 +322,7 @@ export const DashboardPage: React.FC = () => {
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-semibold">Top clientes (créditos)</h3>
-          <div className="bg-secondarySoft/70 border border-borderSoft rounded-lg p-1 inline-flex text-xs font-semibold">
+          <div className="bg-mint/15 border border-borderSoft rounded-xl p-1 inline-flex text-xs font-semibold">
             {(
               [
                 { label: 'Saldo', value: 'balance' },
@@ -352,8 +354,8 @@ export const DashboardPage: React.FC = () => {
                   contentStyle={{
                     borderRadius: '16px',
                     border: `1px solid ${chartPalette.grid}`,
-                    backgroundColor: '#FFFDFE',
-                    boxShadow: '0 14px 32px rgba(232, 90, 155, 0.12)',
+                    backgroundColor: chartPalette.surface,
+                    boxShadow: chartPalette.shadow,
                   }}
                 />
                 <Bar
@@ -376,13 +378,13 @@ export const DashboardPage: React.FC = () => {
             {lowStock.map((product) => (
               <div
                 key={product.id}
-                className="flex items-center justify-between bg-secondarySoft/70 border border-borderSoft rounded-lg px-4 py-3"
+                className="flex items-center justify-between bg-butter/20 border border-borderSoft rounded-xl px-4 py-3"
               >
                 <div>
                   <p className="font-semibold">{product.name}</p>
                   <p className="text-xs text-coffee/70">Existencias: {product.stock}</p>
                 </div>
-                <span className="text-sm font-medium text-accent">Revisar</span>
+                <span className="text-sm font-medium text-skyDeep">Revisar</span>
               </div>
             ))}
             {!lowStock.length && <p className="text-sm text-coffee/70">Todo el stock está saludable.</p>}
@@ -400,7 +402,7 @@ export const DashboardPage: React.FC = () => {
               return (
                 <div
                   key={sale.id}
-                  className="flex items-center justify-between bg-secondarySoft/70 border border-borderSoft rounded-lg px-4 py-3"
+                  className="flex items-center justify-between bg-sky/10 border border-borderSoft rounded-xl px-4 py-3"
                 >
                   <div>
                     <p className="font-semibold">{dateLabel}</p>
