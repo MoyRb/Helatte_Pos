@@ -15,7 +15,7 @@ const cjsRequire = createRequire(import.meta.url)
 /* =========================================================
    PRISMA – Electron-safe lazy loader
 ========================================================= */
-import type { PrismaClient } from '@prisma/client'
+import type { Brand, PrismaClient } from '@prisma/client'
 import { Prisma } from '@prisma/client'
 
 let prisma: PrismaClient | undefined
@@ -79,15 +79,21 @@ async function getDefaultUserId(prismaClient: PrismaClient): Promise<number> {
 }
 
 async function ensureDefaultCashBoxes(prismaClient: PrismaClient) {
-  const existentes = await prismaClient.cashBox.findMany()
-  if (existentes.length > 0) return
+  const brands = await listBrands(prismaClient)
 
-  await prismaClient.cashBox.createMany({
-    data: [
-      { nombre: 'Caja chica', tipo: 'chica' },
-      { nombre: 'Caja grande', tipo: 'grande' }
-    ]
-  })
+  for (const brand of brands) {
+    const existentes = await prismaClient.cashBox.findMany({
+      where: { brandId: brand.id }
+    })
+    if (existentes.length > 0) continue
+
+    await prismaClient.cashBox.createMany({
+      data: [
+        { brandId: brand.id, nombre: 'Caja chica', tipo: 'chica' },
+        { brandId: brand.id, nombre: 'Caja grande', tipo: 'grande' }
+      ]
+    })
+  }
 }
 
 /* =========================================================
@@ -172,6 +178,7 @@ if (!isDev) {
    DATABASE SETUP (SQLite portable)
 ========================================================= */
 const dbPath = path.join(app.getPath('userData'), 'helatte.db')
+const brandConfigPath = path.join(app.getPath('userData'), 'brand-config.json')
 
 const templateDbPath = isDev
   ? path.join(__dirname, '../../prisma/helatte.db')
@@ -186,6 +193,29 @@ if (!fs.existsSync(dbPath)) {
 
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? `file:${dbPath}`
+
+const BRAND_DEFINITIONS = [
+  {
+    slug: 'helatte',
+    nombre: 'Helatte',
+    subtitulo: 'Nevería & Paletería',
+    logoPath: 'brands/helatte-logo.svg',
+    folioPrefix: 'HLT'
+  },
+  {
+    slug: 'las-purepechas',
+    nombre: 'Las Purepechas',
+    subtitulo: 'Helados y antojitos fríos',
+    logoPath: 'brands/las-purepechas-logo.svg',
+    folioPrefix: 'LPR'
+  }
+] as const
+
+type BrandDefinition = (typeof BRAND_DEFINITIONS)[number]
+
+type BrandConfig = {
+  activeBrandSlug: string
+}
 
 type SqliteColumnInfo = {
   name: string
@@ -221,6 +251,249 @@ const addColumnIfMissing = async (
 ) => {
   if (await columnExists(prismaClient, table, column)) return
   await prismaClient.$executeRawUnsafe(sql)
+}
+
+const readAppConfig = (): BrandConfig => {
+  try {
+    if (!fs.existsSync(brandConfigPath)) {
+      const initialConfig: BrandConfig = { activeBrandSlug: BRAND_DEFINITIONS[0].slug }
+      fs.mkdirSync(path.dirname(brandConfigPath), { recursive: true })
+      fs.writeFileSync(brandConfigPath, JSON.stringify(initialConfig, null, 2), 'utf8')
+      return initialConfig
+    }
+
+    const raw = fs.readFileSync(brandConfigPath, 'utf8')
+    const parsed = JSON.parse(raw) as Partial<BrandConfig>
+    const fallback = BRAND_DEFINITIONS[0].slug
+    const activeBrandSlug =
+      typeof parsed.activeBrandSlug === 'string' && parsed.activeBrandSlug.trim()
+        ? parsed.activeBrandSlug
+        : fallback
+
+    if (activeBrandSlug !== parsed.activeBrandSlug) {
+      const normalized: BrandConfig = { activeBrandSlug }
+      fs.writeFileSync(brandConfigPath, JSON.stringify(normalized, null, 2), 'utf8')
+      return normalized
+    }
+
+    return { activeBrandSlug }
+  } catch (error) {
+    console.error('[brand] No se pudo leer la configuración local', error)
+    const fallbackConfig: BrandConfig = { activeBrandSlug: BRAND_DEFINITIONS[0].slug }
+    fs.mkdirSync(path.dirname(brandConfigPath), { recursive: true })
+    fs.writeFileSync(brandConfigPath, JSON.stringify(fallbackConfig, null, 2), 'utf8')
+    return fallbackConfig
+  }
+}
+
+const upsertAppConfig = (next: Partial<BrandConfig>) => {
+  const current = fs.existsSync(brandConfigPath)
+    ? readAppConfig()
+    : { activeBrandSlug: BRAND_DEFINITIONS[0].slug }
+  const merged: BrandConfig = {
+    activeBrandSlug: next.activeBrandSlug ?? current.activeBrandSlug ?? BRAND_DEFINITIONS[0].slug
+  }
+  fs.mkdirSync(path.dirname(brandConfigPath), { recursive: true })
+  fs.writeFileSync(brandConfigPath, JSON.stringify(merged, null, 2), 'utf8')
+  return merged
+}
+
+const brandDefinitionBySlug = (slug: string) =>
+  BRAND_DEFINITIONS.find((brand) => brand.slug === slug) ?? BRAND_DEFINITIONS[0]
+
+const ensureBrandTable = async (prismaClient: PrismaClient) => {
+  await prismaClient.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "Brand" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "slug" TEXT NOT NULL,
+      "nombre" TEXT NOT NULL,
+      "subtitulo" TEXT,
+      "logoPath" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  await prismaClient.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "Brand_slug_key"
+    ON "Brand"("slug")
+  `)
+
+  for (const brand of BRAND_DEFINITIONS) {
+    await prismaClient.$executeRawUnsafe(
+      `INSERT INTO "Brand" ("slug", "nombre", "subtitulo", "logoPath", "createdAt", "updatedAt")
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT("slug") DO UPDATE SET
+         "nombre" = excluded."nombre",
+         "subtitulo" = excluded."subtitulo",
+         "logoPath" = excluded."logoPath",
+         "updatedAt" = CURRENT_TIMESTAMP`,
+      brand.slug,
+      brand.nombre,
+      brand.subtitulo,
+      brand.logoPath
+    )
+  }
+}
+
+const ensureBrandColumnAndBackfill = async (
+  prismaClient: PrismaClient,
+  table: string,
+  indexSql?: string
+) => {
+  if (!(await tableExists(prismaClient, table))) return
+  await addColumnIfMissing(
+    prismaClient,
+    table,
+    'brandId',
+    `ALTER TABLE "${table}" ADD COLUMN "brandId" INTEGER`
+  )
+  const helatteIdRow = (await prismaClient.$queryRawUnsafe(
+    `SELECT "id" FROM "Brand" WHERE "slug" = 'helatte' LIMIT 1`
+  )) as Array<{ id: number }>
+  const helatteId = helatteIdRow[0]?.id ?? 1
+  await prismaClient.$executeRawUnsafe(
+    `UPDATE "${table}" SET "brandId" = ${helatteId} WHERE "brandId" IS NULL`
+  )
+  if (indexSql) {
+    await prismaClient.$executeRawUnsafe(indexSql)
+  }
+}
+
+const ensureMultiBrandSchema = async (prismaClient: PrismaClient) => {
+  await ensureBrandTable(prismaClient)
+
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'ProductType',
+    'CREATE INDEX IF NOT EXISTS "producttype_brand_idx" ON "ProductType"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'Flavor',
+    'CREATE INDEX IF NOT EXISTS "flavor_brand_idx" ON "Flavor"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'Product',
+    'CREATE INDEX IF NOT EXISTS "product_brand_idx" ON "Product"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'RawMaterial',
+    'CREATE INDEX IF NOT EXISTS "rawmaterial_brand_idx" ON "RawMaterial"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'RawMaterialMovement',
+    'CREATE INDEX IF NOT EXISTS "rawmaterialmovement_brand_idx" ON "RawMaterialMovement"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'FinishedStockMovement',
+    'CREATE INDEX IF NOT EXISTS "finishedstockmovement_brand_idx" ON "FinishedStockMovement"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'Customer',
+    'CREATE INDEX IF NOT EXISTS "customer_brand_idx" ON "Customer"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'Credit',
+    'CREATE INDEX IF NOT EXISTS "credit_brand_idx" ON "Credit"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'PromissoryNote',
+    'CREATE INDEX IF NOT EXISTS "promissorynote_brand_idx" ON "PromissoryNote"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'CashBox',
+    'CREATE INDEX IF NOT EXISTS "cashbox_brand_idx" ON "CashBox"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'CashMovement',
+    'CREATE INDEX IF NOT EXISTS "cashmovement_brand_idx" ON "CashMovement"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'FridgeAsset',
+    'CREATE INDEX IF NOT EXISTS "fridgeasset_brand_idx" ON "FridgeAsset"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'FridgeAssignment',
+    'CREATE INDEX IF NOT EXISTS "fridgeassignment_brand_idx" ON "FridgeAssignment"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'FridgeVisit',
+    'CREATE INDEX IF NOT EXISTS "fridgevisit_brand_idx" ON "FridgeVisit"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'Sale',
+    'CREATE INDEX IF NOT EXISTS "sale_brand_idx" ON "Sale"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'ProductionPlan',
+    'CREATE INDEX IF NOT EXISTS "productionplan_brand_idx" ON "ProductionPlan"("brandId")'
+  )
+  await ensureBrandColumnAndBackfill(
+    prismaClient,
+    'CustomerMovement',
+    'CREATE INDEX IF NOT EXISTS "customermovement_brand_idx" ON "CustomerMovement"("brandId")'
+  )
+
+  await prismaClient.$executeRawUnsafe(
+    'DROP INDEX IF EXISTS "Product_sku_key"'
+  )
+  await prismaClient.$executeRawUnsafe(
+    'DROP INDEX IF EXISTS "Sale_folio_key"'
+  )
+  await prismaClient.$executeRawUnsafe(
+    'DROP INDEX IF EXISTS "ProductionPlan_fecha_key"'
+  )
+  await prismaClient.$executeRawUnsafe(
+    'CREATE UNIQUE INDEX IF NOT EXISTS "product_brand_sku_key" ON "Product"("brandId","sku")'
+  )
+  await prismaClient.$executeRawUnsafe(
+    'CREATE UNIQUE INDEX IF NOT EXISTS "sale_brand_folio_key" ON "Sale"("brandId","folio")'
+  )
+  await prismaClient.$executeRawUnsafe(
+    'CREATE UNIQUE INDEX IF NOT EXISTS "productionplan_brand_fecha_key" ON "ProductionPlan"("brandId","fecha")'
+  )
+}
+
+const listBrands = async (prismaClient: PrismaClient) =>
+  prismaClient.brand.findMany({
+    orderBy: [{ nombre: 'asc' }]
+  })
+
+const getActiveBrand = async (prismaClient: PrismaClient): Promise<Brand> => {
+  const config = readAppConfig()
+  const active = await prismaClient.brand.findUnique({
+    where: { slug: config.activeBrandSlug }
+  })
+  if (active) return active
+
+  const fallback = await prismaClient.brand.findUnique({
+    where: { slug: BRAND_DEFINITIONS[0].slug }
+  })
+  if (!fallback) {
+    throw new Error('No hay marcas configuradas en la base de datos.')
+  }
+  upsertAppConfig({ activeBrandSlug: fallback.slug })
+  return fallback
+}
+
+const getActiveBrandId = async (prismaClient: PrismaClient) => {
+  const brand = await getActiveBrand(prismaClient)
+  return brand.id
 }
 
 const ensurePosWholesaleColumns = async (prismaClient: PrismaClient) => {
@@ -476,8 +749,11 @@ const handlePrismaError = async (error: unknown, channel?: string): Promise<stri
 const ensureDatabaseSchema = async (): Promise<boolean> => {
   try {
     const prismaClient = getPrisma()
+    await ensureBrandTable(prismaClient)
     await ensurePosWholesaleColumns(prismaClient)
     await ensureProductionTables(prismaClient)
+    await ensureMultiBrandSchema(prismaClient)
+    await ensureDefaultCashBoxes(prismaClient)
     const missing = await checkDatabaseCompatibility(prismaClient)
 
     if (missing.length === 0) {
@@ -687,10 +963,15 @@ const obtenerPrecioVenta = (
   return producto.precio
 }
 
-const HELATTE_BUSINESS = {
-  nombre: 'Helatte',
-  giro: 'Nevería & Paletería'
-} as const
+const getBrandBusiness = (brand?: Pick<Brand, 'slug' | 'nombre' | 'subtitulo' | 'logoPath'> | null) => {
+  const fallback = brandDefinitionBySlug(brand?.slug ?? BRAND_DEFINITIONS[0].slug)
+  return {
+    nombre: brand?.nombre ?? fallback.nombre,
+    giro: brand?.subtitulo ?? fallback.subtitulo,
+    logoPath: brand?.logoPath ?? fallback.logoPath,
+    folioPrefix: fallback.folioPrefix
+  }
+}
 
 const escapeHtml = (value: string) =>
   value
@@ -805,6 +1086,7 @@ const buildProductLabel = (product: {
 
 const sanitizeProductionItems = async (
   prismaClient: PrismaClient | Prisma.TransactionClient,
+  brandId: number,
   items: ProductionPlanItemPayload[]
 ) => {
   const normalized = items.map((item, index) => {
@@ -824,7 +1106,7 @@ const sanitizeProductionItems = async (
 
   const products = productIds.length
     ? await prismaClient.product.findMany({
-        where: { id: { in: productIds } },
+        where: { id: { in: productIds }, brandId },
         include: { tipo: true, sabor: true }
       })
     : []
@@ -900,11 +1182,13 @@ const serializeProductionPlan = (plan: {
 
 const consolidateWholesaleProduction = async (
   prismaClient: PrismaClient,
+  brandId: number,
   fecha: Date
 ): Promise<{ items: ProductionPlanItemPayload[]; sources: ProductionSourcePayload[] }> => {
   const { start, end } = getDayRange(fecha)
   const sales = await prismaClient.sale.findMany({
     where: {
+      brandId,
       tipoVenta: 'MAYOREO',
       fecha: {
         gte: start,
@@ -939,7 +1223,7 @@ const consolidateWholesaleProduction = async (
     .filter((value): value is number => value !== null)
   const customers = customerIds.length
     ? await prismaClient.customer.findMany({
-        where: { id: { in: customerIds } },
+        where: { id: { in: customerIds }, brandId },
         select: { id: true, nombre: true }
       })
     : []
@@ -983,10 +1267,11 @@ const consolidateWholesaleProduction = async (
 
 const buildProductionDraft = async (
   prismaClient: PrismaClient,
+  brandId: number,
   fecha: Date
 ): Promise<ProductionPlanResponse> => {
   const plan = await prismaClient.productionPlan.findUnique({
-    where: { fecha },
+    where: { brandId_fecha: { brandId, fecha } },
     include: {
       items: {
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
@@ -999,7 +1284,7 @@ const buildProductionDraft = async (
     }
   })
 
-  const consolidated = await consolidateWholesaleProduction(prismaClient, fecha)
+  const consolidated = await consolidateWholesaleProduction(prismaClient, brandId, fecha)
 
   if (plan) {
     return {
@@ -1033,12 +1318,15 @@ const formatFolioDate = (value: Date) => {
 
 const buildFriendlySaleFolio = async (
   tx: Prisma.TransactionClient,
-  saleDate: Date
+  saleDate: Date,
+  brand: Pick<Brand, 'id' | 'slug' | 'nombre' | 'subtitulo' | 'logoPath'>
 ): Promise<string> => {
-  const prefix = `HLT-${formatFolioDate(saleDate)}-`
+  const business = getBrandBusiness(brand)
+  const prefix = `${business.folioPrefix}-${formatFolioDate(saleDate)}-`
   const { start, end } = getDayRange(saleDate)
   const lastSale = await tx.sale.findFirst({
     where: {
+      brandId: brand.id,
       fecha: {
         gte: start,
         lt: end
@@ -1059,25 +1347,29 @@ const buildFriendlySaleFolio = async (
   return `${prefix}${String(nextSequence).padStart(4, '0')}`
 }
 
-const resolveReceiptLogoPath = () => {
+const resolveBrandLogoPath = (logoPath?: string | null) => {
+  if (!logoPath) return null
   const candidates = [
-    path.join(app.getAppPath(), 'src', 'renderer', 'public', 'logo.png'),
-    path.join(app.getAppPath(), 'dist', 'renderer', 'logo.png'),
-    path.join(__dirname, '../renderer/logo.png'),
-    path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'renderer', 'logo.png'),
-    path.join(process.resourcesPath, 'dist', 'renderer', 'logo.png')
+    path.join(app.getAppPath(), 'src', 'renderer', 'public', logoPath),
+    path.join(app.getAppPath(), 'dist', 'renderer', logoPath),
+    path.join(__dirname, '../renderer', logoPath),
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'renderer', logoPath),
+    path.join(process.resourcesPath, 'dist', 'renderer', logoPath)
   ]
 
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null
 }
 
-const getReceiptLogoDataUrl = () => {
-  const logoPath = resolveReceiptLogoPath()
+const getBrandLogoDataUrl = (brand?: Pick<Brand, 'slug' | 'nombre' | 'subtitulo' | 'logoPath'> | null) => {
+  const business = getBrandBusiness(brand)
+  const logoPath = resolveBrandLogoPath(business.logoPath)
   if (!logoPath) return null
 
   try {
     const encoded = fs.readFileSync(logoPath).toString('base64')
-    return `data:image/png;base64,${encoded}`
+    const ext = path.extname(logoPath).toLowerCase()
+    const mimeType = ext === '.svg' ? 'image/svg+xml' : 'image/png'
+    return `data:${mimeType};base64,${encoded}`
   } catch (error) {
     console.error('[print] No se pudo leer el logo para la remisión', error)
     return null
@@ -1086,6 +1378,7 @@ const getReceiptLogoDataUrl = () => {
 
 type PosReceiptData = {
   saleId: number
+  brand: Pick<Brand, 'id' | 'slug' | 'nombre' | 'subtitulo' | 'logoPath'>
   folio: string
   fecha: string
   tipoVenta: PosSaleType
@@ -1108,6 +1401,7 @@ type PosReceiptData = {
 
 const buildReceiptFromSaleRecord = (sale: {
   id: number
+  brand: Pick<Brand, 'id' | 'slug' | 'nombre' | 'subtitulo' | 'logoPath'>
   folio: string
   fecha: Date
   tipoVenta: string
@@ -1131,6 +1425,7 @@ const buildReceiptFromSaleRecord = (sale: {
   }[]
 }): PosReceiptData => ({
   saleId: sale.id,
+  brand: sale.brand,
   folio: sale.folio,
   fecha: sale.fecha.toISOString(),
   tipoVenta: normalizarTipoVenta(sale.tipoVenta),
@@ -1158,6 +1453,9 @@ const getPosReceiptBySaleId = async (
   const sale = await prismaClient.sale.findUnique({
     where: { id: saleId },
     include: {
+      brand: {
+        select: { id: true, slug: true, nombre: true, subtitulo: true, logoPath: true }
+      },
       items: {
         include: {
           product: {
@@ -1189,7 +1487,8 @@ const getPosReceiptBySaleId = async (
 }
 
 const buildReceiptHtml = (receipt: PosReceiptData) => {
-  const logoDataUrl = getReceiptLogoDataUrl()
+  const business = getBrandBusiness(receipt.brand)
+  const logoDataUrl = getBrandLogoDataUrl(receipt.brand)
   const fecha = formatSaleDate(new Date(receipt.fecha))
   const discountLabel =
     receipt.descuentoTipo === 'porcentaje' && receipt.subtotal > 0
@@ -1431,14 +1730,14 @@ const buildReceiptHtml = (receipt: PosReceiptData) => {
             <div class="logo">
               ${
                 logoDataUrl
-                  ? `<img src="${logoDataUrl}" alt="Logo Helatte" />`
-                  : `<div style="font-weight:700;color:#8f4471;">HLT</div>`
+                  ? `<img src="${logoDataUrl}" alt="Logo ${escapeHtml(business.nombre)}" />`
+                  : `<div style="font-weight:700;color:#8f4471;">${escapeHtml(business.folioPrefix)}</div>`
               }
             </div>
             <div>
               <span class="eyebrow">Orden / Remisión</span>
-              <h1>${escapeHtml(HELATTE_BUSINESS.nombre)}</h1>
-              <p class="subtitle">${escapeHtml(HELATTE_BUSINESS.giro)}</p>
+              <h1>${escapeHtml(business.nombre)}</h1>
+              <p class="subtitle">${escapeHtml(business.giro)}</p>
             </div>
           </div>
           <div class="document-title">
@@ -1487,7 +1786,7 @@ const buildReceiptHtml = (receipt: PosReceiptData) => {
         </section>
 
         <section class="notes">
-          Documento generado automáticamente por Helatte POS para control interno y entrega de producto.
+          Documento generado automáticamente por ${escapeHtml(business.nombre)} POS para control interno y entrega de producto.
         </section>
 
         ${signatureSection}
@@ -1530,6 +1829,7 @@ const openPrintPreviewWindow = async (receipt: PosReceiptData) => {
 }
 
 type ProductionPrintData = ProductionPlanPayload & {
+  brand: Pick<Brand, 'id' | 'slug' | 'nombre' | 'subtitulo' | 'logoPath'>
   titulo: string
 }
 
@@ -1566,7 +1866,8 @@ const openHtmlPrintWindow = async (title: string, html: string) => {
 }
 
 const buildProductionPrintHtml = (plan: ProductionPrintData) => {
-  const logoDataUrl = getReceiptLogoDataUrl()
+  const business = getBrandBusiness(plan.brand)
+  const logoDataUrl = getBrandLogoDataUrl(plan.brand)
   const fecha = formatProductionDate(normalizePlanDate(plan.fecha))
   const rows = plan.items
     .map((item) => {
@@ -1636,12 +1937,12 @@ const buildProductionPrintHtml = (plan: ProductionPrintData) => {
         <section class="topbar">
           <div class="brand">
             <div class="logo">
-              ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo Helatte" />` : `<div style="font-weight:700;color:#8f4471;">HLT</div>`}
+              ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo ${escapeHtml(business.nombre)}" />` : `<div style="font-weight:700;color:#8f4471;">${escapeHtml(business.folioPrefix)}</div>`}
             </div>
             <div>
               <span class="eyebrow">Producción diaria</span>
-              <h1>${escapeHtml(HELATTE_BUSINESS.nombre)}</h1>
-              <p class="subtitle">${escapeHtml(HELATTE_BUSINESS.giro)}</p>
+              <h1>${escapeHtml(business.nombre)}</h1>
+              <p class="subtitle">${escapeHtml(business.giro)}</p>
             </div>
           </div>
           <div class="document-title">
@@ -1679,19 +1980,54 @@ const buildProductionPrintHtml = (plan: ProductionPrintData) => {
   </html>`
 }
 
-const openProductionPrintWindow = async (plan: ProductionPlanPayload) => {
+const openProductionPrintWindow = async (
+  plan: ProductionPlanPayload,
+  brand: Pick<Brand, 'id' | 'slug' | 'nombre' | 'subtitulo' | 'logoPath'>
+) => {
   const html = buildProductionPrintHtml({
     ...plan,
+    brand,
     titulo: `Plan de producción ${plan.fecha}`
   })
   await openHtmlPrintWindow(`Plan de producción ${plan.fecha}`, html)
 }
 
 /* =========================================================
+   IPC HANDLERS – MARCAS
+========================================================= */
+safeHandle('brands:list', async () => {
+  const prisma = getPrisma()
+  const brands = await listBrands(prisma)
+  const config = readAppConfig()
+  return brands.map((brand) => ({
+    ...brand,
+    isActive: brand.slug === config.activeBrandSlug
+  }))
+})
+
+safeHandle('brands:getActive', async () => {
+  const prisma = getPrisma()
+  return getActiveBrand(prisma)
+})
+
+safeHandle('brands:setActive', async (_event, slug: string) => {
+  const prisma = getPrisma()
+  const brand = await prisma.brand.findUnique({
+    where: { slug }
+  })
+  if (!brand) {
+    throw new Error('La marca seleccionada no existe.')
+  }
+  upsertAppConfig({ activeBrandSlug: brand.slug })
+  return brand
+})
+
+/* =========================================================
    IPC HANDLERS – DASHBOARD
 ========================================================= */
 safeHandle('dashboard:resumen', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
 
   const inicioHoy = new Date()
   inicioHoy.setHours(0, 0, 0, 0)
@@ -1706,6 +2042,7 @@ safeHandle('dashboard:resumen', async () => {
     await Promise.all([
       prisma.sale.findMany({
         where: {
+          brandId,
           fecha: {
             gte: inicioHoy,
             lt: finHoy
@@ -1714,6 +2051,7 @@ safeHandle('dashboard:resumen', async () => {
       }),
       prisma.cashMovement.findMany({
         where: {
+          brandId,
           fecha: {
             gte: inicioSemana,
             lt: finHoy
@@ -1723,6 +2061,7 @@ safeHandle('dashboard:resumen', async () => {
       }),
       prisma.sale.findMany({
         take: 5,
+        where: { brandId },
         orderBy: { fecha: 'desc' },
         select: {
           id: true,
@@ -1734,14 +2073,17 @@ safeHandle('dashboard:resumen', async () => {
       }),
       prisma.customer.findMany({
         take: 5,
+        where: { brandId },
         orderBy: { saldo: 'desc' }
       }),
       prisma.product.findMany({
         take: 5,
+        where: { brandId },
         orderBy: { stock: 'asc' },
         include: { tipo: true, sabor: true }
       }),
       prisma.fridgeAsset.findMany({
+        where: { brandId },
         include: {
           asignaciones: true
         }
@@ -1755,7 +2097,7 @@ safeHandle('dashboard:resumen', async () => {
     .reduce((sum, mov) => sum + (mov.tipo === 'ingreso' ? mov.monto : -mov.monto), 0)
 
   const clientesConAdeudo = await prisma.customer.count({
-    where: { saldo: { gt: 0 } }
+    where: { brandId, saldo: { gt: 0 } }
   })
 
   const asignacionesActivas = refris.filter((refri) =>
@@ -1814,10 +2156,12 @@ safeHandle('dashboard:resumen', async () => {
 ========================================================= */
 safeHandle('catalogo:listar', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
 
-  const tipos = await prisma.productType.findMany()
-  const sabores = await prisma.flavor.findMany()
+  const tipos = await prisma.productType.findMany({ where: { brandId } })
+  const sabores = await prisma.flavor.findMany({ where: { brandId } })
   const productos = await prisma.product.findMany({
+    where: { brandId },
     include: { tipo: true, sabor: true }
   })
 
@@ -1826,13 +2170,19 @@ safeHandle('catalogo:listar', async () => {
 
 safeHandle('catalogo:crearTipo', async (_event, data: { nombre: string; activo?: boolean }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.productType.create({
-    data: { nombre: data.nombre, activo: data.activo ?? true }
+    data: { brandId, nombre: data.nombre, activo: data.activo ?? true }
   })
 })
 
 safeHandle('catalogo:actualizarTipo', async (_event, data: { id: number; nombre: string; activo?: boolean }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const tipo = await prisma.productType.findFirst({
+    where: { id: data.id, brandId }
+  })
+  if (!tipo) throw new Error('Tipo no encontrado para la marca activa.')
   return prisma.productType.update({
     where: { id: data.id },
     data: { nombre: data.nombre, activo: data.activo }
@@ -1841,6 +2191,11 @@ safeHandle('catalogo:actualizarTipo', async (_event, data: { id: number; nombre:
 
 safeHandle('catalogo:toggleTipo', async (_event, data: { id: number; activo: boolean }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const tipo = await prisma.productType.findFirst({
+    where: { id: data.id, brandId }
+  })
+  if (!tipo) throw new Error('Tipo no encontrado para la marca activa.')
   return prisma.productType.update({
     where: { id: data.id },
     data: { activo: data.activo }
@@ -1849,8 +2204,9 @@ safeHandle('catalogo:toggleTipo', async (_event, data: { id: number; activo: boo
 
 safeHandle('catalogo:crearSabor', async (_event, data: { nombre: string; color?: string; activo?: boolean }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.flavor.create({
-    data: { nombre: data.nombre, color: data.color ?? null, activo: data.activo ?? true }
+    data: { brandId, nombre: data.nombre, color: data.color ?? null, activo: data.activo ?? true }
   })
 })
 
@@ -1858,6 +2214,11 @@ safeHandle(
   'catalogo:actualizarSabor',
   async (_event, data: { id: number; nombre: string; color?: string | null; activo?: boolean }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
+    const flavor = await prisma.flavor.findFirst({
+      where: { id: data.id, brandId }
+    })
+    if (!flavor) throw new Error('Sabor no encontrado para la marca activa.')
     return prisma.flavor.update({
       where: { id: data.id },
       data: { nombre: data.nombre, color: data.color ?? null, activo: data.activo }
@@ -1867,6 +2228,11 @@ safeHandle(
 
 safeHandle('catalogo:toggleSabor', async (_event, data: { id: number; activo: boolean }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const flavor = await prisma.flavor.findFirst({
+    where: { id: data.id, brandId }
+  })
+  if (!flavor) throw new Error('Sabor no encontrado para la marca activa.')
   return prisma.flavor.update({
     where: { id: data.id },
     data: { activo: data.activo }
@@ -1890,8 +2256,15 @@ safeHandle(
     }
   ) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
+    const [tipo, sabor] = await Promise.all([
+      prisma.productType.findFirst({ where: { id: data.tipoId, brandId } }),
+      prisma.flavor.findFirst({ where: { id: data.saborId, brandId } })
+    ])
+    if (!tipo || !sabor) throw new Error('Tipo o sabor inválido para la marca activa.')
     return prisma.product.create({
       data: {
+        brandId,
         tipoId: data.tipoId,
         saborId: data.saborId,
         presentacion: data.presentacion,
@@ -1925,6 +2298,16 @@ safeHandle(
     }
   ) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
+    const product = await prisma.product.findFirst({
+      where: { id: data.id, brandId }
+    })
+    if (!product) throw new Error('Producto no encontrado para la marca activa.')
+    const [tipo, sabor] = await Promise.all([
+      prisma.productType.findFirst({ where: { id: data.tipoId, brandId } }),
+      prisma.flavor.findFirst({ where: { id: data.saborId, brandId } })
+    ])
+    if (!tipo || !sabor) throw new Error('Tipo o sabor inválido para la marca activa.')
     return prisma.product.update({
       where: { id: data.id },
       data: {
@@ -1945,6 +2328,11 @@ safeHandle(
 
 safeHandle('catalogo:toggleProducto', async (_event, data: { id: number; activo: boolean }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const product = await prisma.product.findFirst({
+    where: { id: data.id, brandId }
+  })
+  if (!product) throw new Error('Producto no encontrado para la marca activa.')
   return prisma.product.update({
     where: { id: data.id },
     data: { activo: data.activo },
@@ -1957,8 +2345,10 @@ safeHandle('catalogo:toggleProducto', async (_event, data: { id: number; activo:
 ========================================================= */
 safeHandle('inventario:listarMaterias', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   const [materias, unidades] = await Promise.all([
     prisma.rawMaterial.findMany({
+      where: { brandId },
       include: { unidad: true, movimientos: true }
     }),
     prisma.unit.findMany()
@@ -1968,12 +2358,15 @@ safeHandle('inventario:listarMaterias', async () => {
 
 safeHandle('inventario:listarProductos', async () => {
   const prisma = getPrisma()
-  return prisma.product.findMany()
+  const brandId = await getActiveBrandId(prisma)
+  return prisma.product.findMany({ where: { brandId } })
 })
 
 safeHandle('inventario:listarProductosStock', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.product.findMany({
+    where: { brandId },
     include: {
       tipo: true,
       sabor: true,
@@ -1993,8 +2386,10 @@ safeHandle(
   'inventario:crearMateria',
   async (_event, data: { nombre: string; unidadId: number; stock?: number; costoProm?: number }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
     return prisma.rawMaterial.create({
       data: {
+        brandId,
         nombre: data.nombre,
         unidadId: data.unidadId,
         stock: data.stock ?? 0,
@@ -2009,8 +2404,9 @@ safeHandle(
   'inventario:movimientoMateria',
   async (_event, data: { materialId: number; tipo: 'entrada' | 'salida'; cantidad: number; costoTotal?: number }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
     return prisma.$transaction(async (tx) => {
-      const material = await tx.rawMaterial.findUnique({ where: { id: data.materialId } })
+      const material = await tx.rawMaterial.findFirst({ where: { id: data.materialId, brandId } })
       if (!material) throw new Error('Materia prima no encontrada')
 
       const ajuste = data.tipo === 'entrada' ? data.cantidad : -data.cantidad
@@ -2025,6 +2421,7 @@ safeHandle(
 
       await tx.rawMaterialMovement.create({
         data: {
+          brandId,
           materialId: data.materialId,
           tipo: data.tipo,
           cantidad: data.cantidad,
@@ -2048,8 +2445,9 @@ safeHandle(
   'inventario:movimientoProducto',
   async (_event, data: { productId: number; tipo: 'entrada' | 'salida'; cantidad: number; referencia?: string }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
     return prisma.$transaction(async (tx) => {
-      const producto = await tx.product.findUnique({ where: { id: data.productId } })
+      const producto = await tx.product.findFirst({ where: { id: data.productId, brandId } })
       if (!producto) throw new Error('Producto no encontrado')
 
       const ajuste = data.tipo === 'entrada' ? data.cantidad : -data.cantidad
@@ -2060,6 +2458,7 @@ safeHandle(
 
       await tx.finishedStockMovement.create({
         data: {
+          brandId,
           productId: data.productId,
           tipo: data.tipo,
           cantidad: data.cantidad,
@@ -2083,7 +2482,9 @@ safeHandle(
 ========================================================= */
 safeHandle('clientes:listar', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.customer.findMany({
+    where: { brandId },
     include: {
       creditos: true,
       movimientos: true
@@ -2105,8 +2506,10 @@ safeHandle(
     }
   ) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
     return prisma.customer.create({
       data: {
+        brandId,
         nombre: data.nombre,
         telefono: data.telefono ?? null,
         limite: data.limite ?? 0,
@@ -2133,6 +2536,11 @@ safeHandle(
     }
   ) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
+    const customer = await prisma.customer.findFirst({
+      where: { id: data.id, brandId }
+    })
+    if (!customer) throw new Error('Cliente no encontrado para la marca activa.')
     return prisma.customer.update({
       where: { id: data.id },
       data: {
@@ -2149,6 +2557,11 @@ safeHandle(
 
 safeHandle('clientes:toggleEstado', async (_event, data: { id: number; estado: 'activo' | 'inactivo' }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const customer = await prisma.customer.findFirst({
+    where: { id: data.id, brandId }
+  })
+  if (!customer) throw new Error('Cliente no encontrado para la marca activa.')
   return prisma.customer.update({
     where: { id: data.id },
     data: { estado: data.estado }
@@ -2157,16 +2570,18 @@ safeHandle('clientes:toggleEstado', async (_event, data: { id: number; estado: '
 
 safeHandle('creditos:listarConSaldo', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.customer.findMany({
-    where: { saldo: { gt: 0 } },
+    where: { brandId, saldo: { gt: 0 } },
     orderBy: { saldo: 'desc' }
   })
 })
 
 safeHandle('pagares:listarPorCliente', async (_event, customerId: number) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.promissoryNote.findMany({
-    where: { customerId },
+    where: { customerId, brandId },
     include: { abonos: { orderBy: { fecha: 'desc' } } },
     orderBy: { fecha: 'desc' }
   })
@@ -2174,8 +2589,14 @@ safeHandle('pagares:listarPorCliente', async (_event, customerId: number) => {
 
 safeHandle('pagares:crear', async (_event, data: { customerId: number; monto: number }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const customer = await prisma.customer.findFirst({
+    where: { id: data.customerId, brandId }
+  })
+  if (!customer) throw new Error('Cliente no encontrado para la marca activa.')
   return prisma.promissoryNote.create({
     data: {
+      brandId,
       customerId: data.customerId,
       monto: data.monto,
       estado: 'vigente'
@@ -2187,12 +2608,14 @@ safeHandle(
   'pagares:registrarAbono',
   async (_event, data: { promissoryNoteId: number; monto: number; cashBoxId?: number }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
     return prisma.$transaction(async (tx) => {
       const pagare = await tx.promissoryNote.findUnique({
         where: { id: data.promissoryNoteId },
         include: { customer: true }
       })
       if (!pagare) throw new Error('Pagaré no encontrado')
+      if (pagare.brandId !== brandId) throw new Error('El pagaré no pertenece a la marca activa.')
 
       await tx.promissoryPayment.create({
         data: {
@@ -2219,6 +2642,7 @@ safeHandle(
       if (data.cashBoxId) {
         await tx.cashMovement.create({
           data: {
+            brandId,
             cashBoxId: data.cashBoxId,
             tipo: 'ingreso',
             concepto: `Abono pagaré #${pagare.id}`,
@@ -2237,7 +2661,9 @@ safeHandle(
 ========================================================= */
 safeHandle('cajas:listar', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.cashBox.findMany({
+    where: { brandId },
     include: {
       movimientos: { orderBy: { fecha: 'desc' } }
     }
@@ -2246,8 +2672,9 @@ safeHandle('cajas:listar', async () => {
 
 safeHandle('cajas:listarMovimientos', async (_event, cashBoxId: number) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.cashMovement.findMany({
-    where: { cashBoxId },
+    where: { cashBoxId, brandId },
     orderBy: { fecha: 'desc' }
   })
 })
@@ -2256,8 +2683,14 @@ safeHandle(
   'cajas:crearMovimiento',
   async (_event, data: { cashBoxId: number; tipo: string; concepto: string; monto: number; fecha?: string }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
+    const cashBox = await prisma.cashBox.findFirst({
+      where: { id: data.cashBoxId, brandId }
+    })
+    if (!cashBox) throw new Error('Caja no encontrada para la marca activa.')
     return prisma.cashMovement.create({
       data: {
+        brandId,
         cashBoxId: data.cashBoxId,
         tipo: data.tipo,
         concepto: data.concepto,
@@ -2279,7 +2712,9 @@ safeHandle('backup:export', async (_event, destino: string) => {
 ========================================================= */
 safeHandle('refris:listar', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.fridgeAsset.findMany({
+    where: { brandId },
     include: {
       asignaciones: {
         include: { customer: true },
@@ -2292,8 +2727,10 @@ safeHandle('refris:listar', async () => {
 
 safeHandle('refris:listarDisponibles', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.fridgeAsset.findMany({
     where: {
+      brandId,
       estado: 'activo',
       asignaciones: { none: { fechaFin: null } }
     }
@@ -2302,8 +2739,10 @@ safeHandle('refris:listarDisponibles', async () => {
 
 safeHandle('refris:crear', async (_event, data: { modelo: string; serie: string; estado?: string }) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.fridgeAsset.create({
     data: {
+      brandId,
       modelo: data.modelo,
       serie: data.serie,
       estado: data.estado ?? 'activo'
@@ -2315,6 +2754,11 @@ safeHandle(
   'refris:actualizar',
   async (_event, data: { id: number; modelo?: string; serie?: string; estado?: string }) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
+    const fridge = await prisma.fridgeAsset.findFirst({
+      where: { id: data.id, brandId }
+    })
+    if (!fridge) throw new Error('Refri no encontrado para la marca activa.')
     return prisma.fridgeAsset.update({
       where: { id: data.id },
       data: {
@@ -2334,7 +2778,11 @@ safeHandle(
 
 safeHandle('refris:toggleEstado', async (_event, data: { id: number }) => {
   const prisma = getPrisma()
-  const refri = await prisma.fridgeAsset.findUniqueOrThrow({ where: { id: data.id } })
+  const brandId = await getActiveBrandId(prisma)
+  const refri = await prisma.fridgeAsset.findFirst({
+    where: { id: data.id, brandId }
+  })
+  if (!refri) throw new Error('Refri no encontrado para la marca activa.')
   const nuevoEstado = refri.estado === 'activo' ? 'inactivo' : 'activo'
   return prisma.fridgeAsset.update({
     where: { id: refri.id },
@@ -2350,8 +2798,9 @@ safeHandle('refris:toggleEstado', async (_event, data: { id: number }) => {
 
 safeHandle('asignaciones:listarPorCliente', async (_event, customerId: number) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.fridgeAssignment.findMany({
-    where: { customerId },
+    where: { customerId, brandId },
     include: { asset: true },
     orderBy: { entregadoEn: 'desc' }
   })
@@ -2364,9 +2813,16 @@ safeHandle(
     data: { customerId: number; assetId: number; ubicacion: string; entregadoEn: string; deposito?: number; renta?: number }
   ) => {
     const prisma = getPrisma()
+    const brandId = await getActiveBrandId(prisma)
     return prisma.$transaction(async (tx) => {
+      const [customer, asset] = await Promise.all([
+        tx.customer.findFirst({ where: { id: data.customerId, brandId } }),
+        tx.fridgeAsset.findFirst({ where: { id: data.assetId, brandId } })
+      ])
+      if (!customer) throw new Error('Cliente no encontrado para la marca activa.')
+      if (!asset) throw new Error('Refri no encontrado para la marca activa.')
       const active = await tx.fridgeAssignment.findFirst({
-        where: { assetId: data.assetId, fechaFin: null }
+        where: { assetId: data.assetId, brandId, fechaFin: null }
       })
       if (active) {
         throw new Error('El refri ya está asignado.')
@@ -2374,6 +2830,7 @@ safeHandle(
 
       const asignacion = await tx.fridgeAssignment.create({
         data: {
+          brandId,
           customerId: data.customerId,
           assetId: data.assetId,
           ubicacion: data.ubicacion,
@@ -2391,6 +2848,11 @@ safeHandle(
 
 safeHandle('asignaciones:eliminar', async (_event, id: number) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const assignment = await prisma.fridgeAssignment.findFirst({
+    where: { id, brandId }
+  })
+  if (!assignment) throw new Error('Asignación no encontrada para la marca activa.')
   await prisma.fridgeAssignment.update({
     where: { id },
     data: {
@@ -2402,7 +2864,9 @@ safeHandle('asignaciones:eliminar', async (_event, id: number) => {
 
 safeHandle('ventas:list', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.sale.findMany({
+    where: { brandId },
     include: { items: true },
     orderBy: { fecha: 'desc' }
   })
@@ -2412,13 +2876,14 @@ safeHandle(
   'ventas:crear',
   async (_event, data: { items: { productId: number; cantidad: number }[]; metodo: string; cajeroId?: number }) => {
     const prisma = getPrisma()
+    const brand = await getActiveBrand(prisma)
     const cajeroId = data.cajeroId ?? (await getDefaultUserId(prisma))
 
     return prisma.$transaction(async (tx) => {
       const saleDate = new Date()
-      const folio = await buildFriendlySaleFolio(tx, saleDate)
+      const folio = await buildFriendlySaleFolio(tx, saleDate, brand)
       const productos = await tx.product.findMany({
-        where: { id: { in: data.items.map((i) => i.productId) } },
+        where: { id: { in: data.items.map((i) => i.productId) }, brandId: brand.id },
         include: { sabor: true, tipo: true }
       })
       const total = data.items.reduce((sum, item) => {
@@ -2430,6 +2895,7 @@ safeHandle(
 
       const sale = await tx.sale.create({
         data: {
+          brandId: brand.id,
           folio,
           fecha: saleDate,
           cajeroId,
@@ -2463,6 +2929,7 @@ safeHandle(
 
         await tx.finishedStockMovement.create({
           data: {
+            brandId: brand.id,
             productId: item.productId,
             tipo: 'salida',
             cantidad: item.cantidad,
@@ -2494,6 +2961,7 @@ safeHandle(
     }
   ) => {
     const prisma = getPrisma()
+    const brand = await getActiveBrand(prisma)
     const cajeroId = await getDefaultUserId(prisma)
     const tipoVenta = normalizarTipoVenta(data.tipoVenta)
     const descuentoTipo = normalizarTipoDescuento(data.descuentoTipo)
@@ -2504,8 +2972,17 @@ safeHandle(
     }
 
     return prisma.$transaction(async (tx) => {
+      if (data.cashBoxId) {
+        const cashBox = await tx.cashBox.findFirst({
+          where: { id: data.cashBoxId, brandId: brand.id }
+        })
+        if (!cashBox) {
+          throw new Error('La caja seleccionada no pertenece a la marca activa.')
+        }
+      }
+
       const customer = data.customerId
-        ? await tx.customer.findUnique({ where: { id: data.customerId } })
+        ? await tx.customer.findFirst({ where: { id: data.customerId, brandId: brand.id } })
         : null
 
       if (tipoVenta === 'MAYOREO') {
@@ -2521,7 +2998,7 @@ safeHandle(
       }
 
       const productos = await tx.product.findMany({
-        where: { id: { in: data.items.map((i) => i.productId) } },
+        where: { id: { in: data.items.map((i) => i.productId) }, brandId: brand.id },
         include: { tipo: true, sabor: true }
       })
 
@@ -2547,10 +3024,11 @@ safeHandle(
       const total = Number((subtotal - descuentoAplicado).toFixed(2))
       const pagoMetodo = data.customerId ? 'crédito' : 'efectivo'
       const saleDate = new Date()
-      const folio = await buildFriendlySaleFolio(tx, saleDate)
+      const folio = await buildFriendlySaleFolio(tx, saleDate, brand)
 
       const sale = await tx.sale.create({
         data: {
+          brandId: brand.id,
           folio,
           fecha: saleDate,
           cajeroId,
@@ -2584,6 +3062,7 @@ safeHandle(
 
         await tx.finishedStockMovement.create({
           data: {
+            brandId: brand.id,
             productId: item.productId,
             tipo: 'salida',
             cantidad: item.cantidad,
@@ -2599,6 +3078,7 @@ safeHandle(
       if (data.cashBoxId) {
         await tx.cashMovement.create({
           data: {
+            brandId: brand.id,
             cashBoxId: data.cashBoxId,
             tipo: 'ingreso',
             concepto: `Venta POS ${folio}`,
@@ -2615,6 +3095,7 @@ safeHandle(
 
         await tx.customerMovement.create({
           data: {
+            brandId: brand.id,
             customerId: data.customerId,
             tipo: 'cargo',
             concepto: `Venta POS ${folio}`,
@@ -2644,8 +3125,10 @@ safeHandle(
 
 safeHandle('pos:ventasRecientes', async (_event, limit = 10) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   const sales = await prisma.sale.findMany({
     take: Math.min(Math.max(Number(limit) || 10, 1), 30),
+    where: { brandId },
     orderBy: { fecha: 'desc' },
     select: {
       id: true,
@@ -2663,7 +3146,7 @@ safeHandle('pos:ventasRecientes', async (_event, limit = 10) => {
     .filter((value): value is number => value !== null)
   const customers = customerIds.length
     ? await prisma.customer.findMany({
-        where: { id: { in: customerIds } },
+        where: { id: { in: customerIds }, brandId },
         select: { id: true, nombre: true }
       })
     : []
@@ -2682,6 +3165,12 @@ safeHandle('pos:ventasRecientes', async (_event, limit = 10) => {
 
 safeHandle('pos:imprimirRemision', async (_event, saleId: number) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
+  const sale = await prisma.sale.findFirst({
+    where: { id: saleId, brandId },
+    select: { id: true }
+  })
+  if (!sale) throw new Error('La venta no pertenece a la marca activa.')
   const receipt = await getPosReceiptBySaleId(prisma, saleId)
   await openPrintPreviewWindow(receipt)
   return { ok: true }
@@ -2689,13 +3178,15 @@ safeHandle('pos:imprimirRemision', async (_event, saleId: number) => {
 
 safeHandle('produccion:obtenerPlan', async (_event, fecha: string) => {
   const prisma = getPrisma()
-  return buildProductionDraft(prisma, normalizePlanDate(fecha))
+  const brandId = await getActiveBrandId(prisma)
+  return buildProductionDraft(prisma, brandId, normalizePlanDate(fecha))
 })
 
 safeHandle('produccion:reconsolidar', async (_event, fecha: string) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   const targetDate = normalizePlanDate(fecha)
-  const consolidated = await consolidateWholesaleProduction(prisma, targetDate)
+  const consolidated = await consolidateWholesaleProduction(prisma, brandId, targetDate)
 
   return {
     plan: null,
@@ -2717,17 +3208,19 @@ safeHandle(
     data: { fecha: string; notas?: string; items: ProductionPlanItemPayload[] }
   ) => {
     const prisma = getPrisma()
+    const brand = await getActiveBrand(prisma)
     const fecha = normalizePlanDate(data.fecha)
 
     const saved = await prisma.$transaction(async (tx) => {
-      const items = await sanitizeProductionItems(tx, data.items ?? [])
+      const items = await sanitizeProductionItems(tx, brand.id, data.items ?? [])
       const plan = await tx.productionPlan.upsert({
-        where: { fecha },
+        where: { brandId_fecha: { brandId: brand.id, fecha } },
         update: {
           notas: (data.notas ?? '').trim(),
           updatedAt: new Date()
         },
         create: {
+          brandId: brand.id,
           fecha,
           notas: (data.notas ?? '').trim()
         }
@@ -2779,7 +3272,7 @@ safeHandle(
 
       if (affectedProductIds.length > 0) {
         const products = await tx.product.findMany({
-          where: { id: { in: affectedProductIds } },
+          where: { id: { in: affectedProductIds }, brandId: brand.id },
           include: { tipo: true, sabor: true }
         })
         const productMap = new Map(products.map((product) => [product.id, product]))
@@ -2809,6 +3302,7 @@ safeHandle(
 
           await tx.finishedStockMovement.create({
             data: {
+              brandId: brand.id,
               productId,
               tipo: delta > 0 ? 'entrada' : 'salida',
               cantidad: Math.abs(delta),
@@ -2839,9 +3333,10 @@ safeHandle(
 
 safeHandle('produccion:imprimir', async (_event, fecha: string) => {
   const prisma = getPrisma()
+  const brand = await getActiveBrand(prisma)
   const targetDate = normalizePlanDate(fecha)
   const plan = await prisma.productionPlan.findUnique({
-    where: { fecha: targetDate },
+    where: { brandId_fecha: { brandId: brand.id, fecha: targetDate } },
     include: {
       items: {
         orderBy: [{ orden: 'asc' }, { id: 'asc' }],
@@ -2858,13 +3353,15 @@ safeHandle('produccion:imprimir', async (_event, fecha: string) => {
     throw new Error('Guarda el plan de producción antes de imprimirlo.')
   }
 
-  await openProductionPrintWindow(serializeProductionPlan(plan))
+  await openProductionPrintWindow(serializeProductionPlan(plan), brand)
   return { ok: true }
 })
 
 safeHandle('refri:listar', async () => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.fridgeAsset.findMany({
+    where: { brandId },
     include: {
       asignaciones: {
         include: { customer: true },
@@ -2880,8 +3377,9 @@ safeHandle('refri:listar', async () => {
 ========================================================= */
 safeHandle('stock:movimientos', async (_event, productId: number) => {
   const prisma = getPrisma()
+  const brandId = await getActiveBrandId(prisma)
   return prisma.finishedStockMovement.findMany({
-    where: { productId },
+    where: { productId, brandId },
     orderBy: { createdAt: 'desc' }
   })
 })
@@ -2890,10 +3388,11 @@ const crearVenta = async (
   prisma: PrismaClient,
   data: { items: { productId: number; cantidad: number }[]; pagoMetodo: string; cajeroId?: number }
 ) => {
+  const brand = await getActiveBrand(prisma)
   const cajeroId = data.cajeroId ?? (await obtenerCajero(prisma))
   return prisma.$transaction(async (tx) => {
     const productos = await tx.product.findMany({
-      where: { id: { in: data.items.map((item) => item.productId) } }
+      where: { id: { in: data.items.map((item) => item.productId) }, brandId: brand.id }
     })
 
     const total = data.items.reduce((sum, item) => {
@@ -2904,6 +3403,7 @@ const crearVenta = async (
 
     const venta = await tx.sale.create({
       data: {
+        brandId: brand.id,
         folio: `V-${Date.now()}`,
         cajeroId,
         total,

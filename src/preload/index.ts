@@ -1,6 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 /** ===== Tipos ===== */
+export type Brand = {
+  id: number;
+  slug: string;
+  nombre: string;
+  subtitulo?: string | null;
+  logoPath?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isActive?: boolean;
+};
+
 export type Flavor = { id: number; nombre: string; color?: string | null; activo: boolean };
 
 export type ProductType = { id: number; nombre: string; activo: boolean };
@@ -226,6 +237,11 @@ export type DashboardSummary = {
 
 /** ===== API ===== */
 const api = {
+  // Marcas
+  listarMarcas: () => ipcRenderer.invoke('brands:list') as Promise<Brand[]>,
+  obtenerMarcaActiva: () => ipcRenderer.invoke('brands:getActive') as Promise<Brand>,
+  seleccionarMarca: (slug: string) => ipcRenderer.invoke('brands:setActive', slug) as Promise<Brand>,
+
   // Backup
   exportarBackup: (destino: string) => ipcRenderer.invoke('backup:export', destino) as Promise<{ ok: boolean }>,
 
