@@ -1999,26 +1999,48 @@ safeHandle('brands:list', async () => {
   const prisma = getPrisma()
   const brands = await listBrands(prisma)
   const config = readAppConfig()
-  return brands.map((brand) => ({
+  const result = brands.map((brand) => ({
     ...brand,
     isActive: brand.slug === config.activeBrandSlug
   }))
+
+  console.info('[brands:list] Marcas enviadas al renderer', {
+    total: result.length,
+    activeBrandSlug: config.activeBrandSlug,
+    slugs: result.map((brand) => brand.slug)
+  })
+
+  return result
 })
 
 safeHandle('brands:getActive', async () => {
   const prisma = getPrisma()
-  return getActiveBrand(prisma)
+  const activeBrand = await getActiveBrand(prisma)
+
+  console.info('[brands:getActive] Marca activa resuelta', {
+    slug: activeBrand.slug,
+    nombre: activeBrand.nombre
+  })
+
+  return activeBrand
 })
 
 safeHandle('brands:setActive', async (_event, slug: string) => {
   const prisma = getPrisma()
+  const normalizedSlug = slug.trim()
   const brand = await prisma.brand.findUnique({
-    where: { slug }
+    where: { slug: normalizedSlug }
   })
   if (!brand) {
     throw new Error('La marca seleccionada no existe.')
   }
   upsertAppConfig({ activeBrandSlug: brand.slug })
+
+  console.info('[brands:setActive] Marca activa actualizada', {
+    requested: normalizedSlug,
+    persisted: brand.slug
+  })
+
   return brand
 })
 

@@ -26,12 +26,13 @@ const menu = [
 
 export default function App() {
   const year = useMemo(() => new Date().getFullYear(), []);
-  const { brands, activeBrand, loading, error, setActiveBrand } = useBrandContext();
+  const { brands, activeBrand, loading, error, refreshBrands, setActiveBrand } = useBrandContext();
   const [isBrandMenuOpen, setIsBrandMenuOpen] = useState(false);
   const brandMenuRef = useRef<HTMLDivElement | null>(null);
   const logoSrc = `${import.meta.env.BASE_URL}${activeBrand?.logoPath ?? 'brands/helatte-logo.svg'}`;
   const brandName = activeBrand?.nombre ?? 'Helatte';
   const subtitle = activeBrand?.subtitulo ?? 'Nevería & Paletería';
+  const isBrandSelectorDisabled = loading && brands.length === 0;
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -80,7 +81,7 @@ export default function App() {
               aria-haspopup="menu"
               aria-expanded={isBrandMenuOpen}
               onClick={() => setIsBrandMenuOpen((current) => !current)}
-              disabled={loading || brands.length === 0}
+              disabled={isBrandSelectorDisabled}
               className="flex w-full items-center justify-between rounded-2xl border border-borderSoft/80 bg-white/90 px-3 py-3 text-left shadow-sm transition hover:border-blush/45 hover:bg-blush/10 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blush/30 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <div className="flex min-w-0 items-center gap-3">
@@ -135,9 +136,24 @@ export default function App() {
             ) : null}
           </div>
           <p className="px-1 text-xs text-text/55">
-            {loading ? 'Cambiando contexto de marca…' : 'Cada marca conserva sus propios datos operativos.'}
+            {loading
+              ? brands.length > 0
+                ? 'Actualizando contexto de marca…'
+                : 'Cargando marcas disponibles…'
+              : 'Cada marca conserva sus propios datos operativos.'}
           </p>
-          {error ? <p className="px-1 text-xs text-red-500">{error}</p> : null}
+          {error ? (
+            <div className="space-y-2 px-1">
+              <p className="text-xs text-red-500">{error}</p>
+              <button
+                type="button"
+                onClick={() => void refreshBrands()}
+                className="inline-flex items-center rounded-lg border border-borderSoft/80 bg-white/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-text/70 transition hover:border-blush/45 hover:bg-blush/10 hover:text-blushDeep"
+              >
+                Reintentar carga de marcas
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <nav className="flex-1 space-y-1">
