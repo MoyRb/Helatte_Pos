@@ -322,11 +322,27 @@ const ensureProductionTables = async (prismaClient: PrismaClient) => {
       "presentacion" TEXT NOT NULL,
       "cantidadBase" INTEGER NOT NULL DEFAULT 0,
       "cantidadAjuste" INTEGER NOT NULL DEFAULT 0,
+      "cantidadAplicada" INTEGER NOT NULL DEFAULT 0,
       "orden" INTEGER NOT NULL DEFAULT 0,
       CONSTRAINT "ProductionPlanItem_planId_fkey" FOREIGN KEY ("planId") REFERENCES "ProductionPlan" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
       CONSTRAINT "ProductionPlanItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE SET NULL ON UPDATE CASCADE
     )
   `)
+
+  await addColumnIfMissing(
+    prismaClient,
+    'ProductionPlanItem',
+    'cantidadAplicada',
+    'ALTER TABLE "ProductionPlanItem" ADD COLUMN "cantidadAplicada" INTEGER NOT NULL DEFAULT 0'
+  )
+
+  await prismaClient.$executeRawUnsafe(
+    `UPDATE "ProductionPlanItem"
+     SET "cantidadAplicada" = CASE
+       WHEN "cantidadAplicada" = 0 AND ("cantidadBase" + "cantidadAjuste") > 0 THEN ("cantidadBase" + "cantidadAjuste")
+       ELSE "cantidadAplicada"
+     END`
+  )
 
   await prismaClient.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "productionplanitem_plan_idx"
@@ -772,23 +788,71 @@ const formatProductionDate = (value: Date) =>
     dateStyle: 'full'
   }).format(value)
 
-const sanitizeProductionItems = (items: ProductionPlanItemPayload[]) =>
-  items
-    .map((item, index) => {
-      const cantidadBase = Math.round(Number(item.cantidadBase ?? 0))
-      const cantidadFinal = Math.max(0, Math.round(Number(item.cantidadFinal ?? 0)))
-      const cantidadAjuste = cantidadFinal - cantidadBase
+const buildProductName = (product: {
+  tipo?: { nombre: string | null } | null
+  sabor?: { nombre: string | null } | null
+}) =>
+  [product.tipo?.nombre?.trim(), product.sabor?.nombre?.trim()].filter(Boolean).join(' · ')
+
+const buildProductLabel = (product: {
+  tipo?: { nombre: string | null } | null
+  sabor?: { nombre: string | null } | null
+  presentacion?: string | null
+}) => {
+  const name = buildProductName(product)
+  return product.presentacion?.trim() ? `${name} — ${product.presentacion.trim()}` : name
+}
+
+const sanitizeProductionItems = async (
+  prismaClient: PrismaClient | Prisma.TransactionClient,
+  items: ProductionPlanItemPayload[]
+) => {
+  const normalized = items.map((item, index) => {
+    const cantidadBase = Math.max(0, Math.round(Number(item.cantidadBase ?? 0)))
+    const cantidadFinal = Math.max(0, Math.round(Number(item.cantidadFinal ?? 0)))
+    return {
+      productId: item.productId ?? null,
+      cantidadBase: Number.isFinite(cantidadBase) ? cantidadBase : 0,
+      cantidadFinal: Number.isFinite(cantidadFinal) ? cantidadFinal : 0,
+      orden: Number.isFinite(Number(item.orden)) ? Number(item.orden) : index
+    }
+  })
+
+  const productIds = Array.from(
+    new Set(normalized.map((item) => item.productId).filter((value): value is number => value !== null))
+  )
+
+  const products = productIds.length
+    ? await prismaClient.product.findMany({
+        where: { id: { in: productIds } },
+        include: { tipo: true, sabor: true }
+      })
+    : []
+  const productMap = new Map(products.map((product) => [product.id, product]))
+
+  return normalized
+    .map((item) => {
+      if (!item.productId) {
+        throw new Error('Cada renglón de producción debe estar vinculado a un producto terminado existente.')
+      }
+
+      const product = productMap.get(item.productId)
+      if (!product) {
+        throw new Error('Uno de los productos de producción ya no existe en el catálogo.')
+      }
+
       return {
-        productId: item.productId ?? null,
-        nombre: String(item.nombre ?? '').trim(),
-        presentacion: String(item.presentacion ?? '').trim(),
-        cantidadBase: Number.isFinite(cantidadBase) ? cantidadBase : 0,
-        cantidadAjuste: Number.isFinite(cantidadAjuste) ? cantidadAjuste : 0,
-        cantidadFinal: Number.isFinite(cantidadFinal) ? cantidadFinal : 0,
-        orden: Number.isFinite(Number(item.orden)) ? Number(item.orden) : index
+        productId: item.productId,
+        nombre: buildProductName(product),
+        presentacion: product.presentacion,
+        cantidadBase: item.cantidadBase,
+        cantidadAjuste: item.cantidadFinal - item.cantidadBase,
+        cantidadFinal: item.cantidadFinal,
+        orden: item.orden
       }
     })
-    .filter((item) => item.cantidadFinal > 0 && item.nombre && item.presentacion)
+    .filter((item) => item.cantidadFinal > 0)
+}
 
 const serializeProductionPlan = (plan: {
   id: number
@@ -803,7 +867,14 @@ const serializeProductionPlan = (plan: {
     presentacion: string
     cantidadBase: number
     cantidadAjuste: number
+    cantidadAplicada: number
     orden: number
+    product?: {
+      id: number
+      presentacion: string
+      tipo: { nombre: string }
+      sabor: { nombre: string }
+    } | null
   }[]
 }): ProductionPlanPayload => ({
   id: plan.id,
@@ -817,8 +888,8 @@ const serializeProductionPlan = (plan: {
     .map((item) => ({
       id: item.id,
       productId: item.productId,
-      nombre: item.nombre,
-      presentacion: item.presentacion,
+      nombre: item.product ? buildProductName(item.product) : item.nombre,
+      presentacion: item.product?.presentacion ?? item.presentacion,
       cantidadBase: item.cantidadBase,
       cantidadAjuste: item.cantidadAjuste,
       cantidadFinal: item.cantidadBase + item.cantidadAjuste,
@@ -852,6 +923,7 @@ const consolidateWholesaleProduction = async (
           cantidad: true,
           product: {
             select: {
+              sku: true,
               tipo: { select: { nombre: true } },
               sabor: { select: { nombre: true } },
               presentacion: true
@@ -879,7 +951,7 @@ const consolidateWholesaleProduction = async (
     for (const item of sale.items) {
       const key = `${item.productId}::${item.product.presentacion}`
       const current = totals.get(key)
-      const nombre = `${item.product.tipo.nombre} ${item.product.sabor.nombre}`.trim()
+      const nombre = buildProductName(item.product)
       if (current) {
         current.cantidadBase += item.cantidad
         current.cantidadFinal += item.cantidad
@@ -917,7 +989,12 @@ const buildProductionDraft = async (
     where: { fecha },
     include: {
       items: {
-        orderBy: [{ orden: 'asc' }, { id: 'asc' }]
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+        include: {
+          product: {
+            include: { tipo: true, sabor: true }
+          }
+        }
       }
     }
   })
@@ -1938,6 +2015,9 @@ safeHandle(
 
       const ajuste = data.tipo === 'entrada' ? data.cantidad : -data.cantidad
       const stockActual = material.stock + ajuste
+      if (stockActual < 0) {
+        throw new Error('La salida dejaría stock negativo en materia prima.')
+      }
       const costoProm =
         data.tipo === 'entrada' && data.costoTotal
           ? (material.stock * material.costoProm + data.costoTotal) / Math.max(stockActual, 1)
@@ -1974,6 +2054,9 @@ safeHandle(
 
       const ajuste = data.tipo === 'entrada' ? data.cantidad : -data.cantidad
       const stockActual = producto.stock + ajuste
+      if (stockActual < 0) {
+        throw new Error('La salida dejaría stock negativo en producto terminado.')
+      }
 
       await tx.finishedStockMovement.create({
         data: {
@@ -2377,6 +2460,15 @@ safeHandle(
           where: { id: item.productId },
           data: { stock: { decrement: item.cantidad } }
         })
+
+        await tx.finishedStockMovement.create({
+          data: {
+            productId: item.productId,
+            tipo: 'salida',
+            cantidad: item.cantidad,
+            referencia: `Venta ${folio}`
+          }
+        })
       }
 
       await tx.payment.create({
@@ -2626,9 +2718,9 @@ safeHandle(
   ) => {
     const prisma = getPrisma()
     const fecha = normalizePlanDate(data.fecha)
-    const items = sanitizeProductionItems(data.items ?? [])
 
     const saved = await prisma.$transaction(async (tx) => {
+      const items = await sanitizeProductionItems(tx, data.items ?? [])
       const plan = await tx.productionPlan.upsert({
         where: { fecha },
         update: {
@@ -2640,6 +2732,27 @@ safeHandle(
           notas: (data.notas ?? '').trim()
         }
       })
+
+      const existingItems = await tx.productionPlanItem.findMany({
+        where: { planId: plan.id }
+      })
+
+      const previousAppliedByProduct = new Map<number, number>()
+      for (const item of existingItems) {
+        if (!item.productId) continue
+        previousAppliedByProduct.set(
+          item.productId,
+          (previousAppliedByProduct.get(item.productId) ?? 0) + Math.max(0, item.cantidadAplicada)
+        )
+      }
+
+      const nextAppliedByProduct = new Map<number, number>()
+      for (const item of items) {
+        nextAppliedByProduct.set(
+          item.productId,
+          (nextAppliedByProduct.get(item.productId) ?? 0) + Math.max(0, item.cantidadFinal)
+        )
+      }
 
       await tx.productionPlanItem.deleteMany({
         where: { planId: plan.id }
@@ -2654,16 +2767,67 @@ safeHandle(
             presentacion: item.presentacion,
             cantidadBase: item.cantidadBase,
             cantidadAjuste: item.cantidadAjuste,
+            cantidadAplicada: item.cantidadFinal,
             orden: index
           }))
         })
+      }
+
+      const affectedProductIds = Array.from(
+        new Set([...previousAppliedByProduct.keys(), ...nextAppliedByProduct.keys()])
+      )
+
+      if (affectedProductIds.length > 0) {
+        const products = await tx.product.findMany({
+          where: { id: { in: affectedProductIds } },
+          include: { tipo: true, sabor: true }
+        })
+        const productMap = new Map(products.map((product) => [product.id, product]))
+
+        for (const productId of affectedProductIds) {
+          const previousApplied = previousAppliedByProduct.get(productId) ?? 0
+          const nextApplied = nextAppliedByProduct.get(productId) ?? 0
+          const delta = nextApplied - previousApplied
+          if (delta === 0) continue
+
+          const product = productMap.get(productId)
+          if (!product) {
+            throw new Error('Uno de los productos de producción ya no existe en inventario.')
+          }
+
+          const nextStock = product.stock + delta
+          if (nextStock < 0) {
+            throw new Error(`La producción ajustada dejaría stock negativo para ${buildProductLabel(product)}.`)
+          }
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              stock: nextStock
+            }
+          })
+
+          await tx.finishedStockMovement.create({
+            data: {
+              productId,
+              tipo: delta > 0 ? 'entrada' : 'salida',
+              cantidad: Math.abs(delta),
+              referencia: `Producción ${formatPlanDateInput(fecha)}`
+            }
+          })
+        }
       }
 
       return tx.productionPlan.findUniqueOrThrow({
         where: { id: plan.id },
         include: {
           items: {
-            orderBy: [{ orden: 'asc' }, { id: 'asc' }]
+            orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+            include: {
+              product: {
+                include: { tipo: true, sabor: true }
+              }
+            }
           }
         }
       })
@@ -2680,7 +2844,12 @@ safeHandle('produccion:imprimir', async (_event, fecha: string) => {
     where: { fecha: targetDate },
     include: {
       items: {
-        orderBy: [{ orden: 'asc' }, { id: 'asc' }]
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+        include: {
+          product: {
+            include: { tipo: true, sabor: true }
+          }
+        }
       }
     }
   })

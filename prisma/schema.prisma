@@ -286,6 +286,7 @@ model ProductionPlanItem {
   presentacion   String
   cantidadBase   Int            @default(0)
   cantidadAjuste Int            @default(0)
+  cantidadAplicada Int          @default(0)
   orden          Int            @default(0)
 
   plan    ProductionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)

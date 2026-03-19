@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { buildProductLabel, buildProductMeta, buildProductName } from '../utils/productLabels';
 
 type Flavor = { id: number; nombre: string; color?: string | null; activo: boolean };
 type ProductType = { id: number; nombre: string; activo: boolean };
@@ -337,9 +338,7 @@ export default function Catalogo() {
               <thead>
                 <tr className="text-left text-text/65">
                   <th>SKU</th>
-                  <th>Tipo</th>
-                  <th>Sabor</th>
-                  <th>Presentación</th>
+                  <th>Producto</th>
                   <th>Precio</th>
                   <th>Mayoreo</th>
                   <th>Estado</th>
@@ -350,9 +349,20 @@ export default function Catalogo() {
                 {productos.map((p) => (
                   <tr key={p.id} className="border-b border-borderSoft/80">
                     <td className="py-1">{p.sku ?? '—'}</td>
-                    <td className="capitalize">{p.tipo?.nombre ?? tipoNombrePorId.get((p as any).tipoId) ?? '—'}</td>
-                    <td>{p.sabor?.nombre ?? saborNombrePorId.get((p as any).saborId) ?? '—'}</td>
-                    <td>{p.presentacion}</td>
+                    <td>
+                      <div>
+                        <p className="font-medium">
+                          {buildProductLabel({
+                            ...p,
+                            tipo: { nombre: p.tipo?.nombre ?? tipoNombrePorId.get((p as any).tipoId) ?? '—' },
+                            sabor: { nombre: p.sabor?.nombre ?? saborNombrePorId.get((p as any).saborId) ?? '—' }
+                          })}
+                        </p>
+                        <p className="text-xs text-text/55">
+                          {buildProductMeta(p) || buildProductName(p)}
+                        </p>
+                      </div>
+                    </td>
                     <td>${p.precio.toFixed(2)}</td>
                     <td>{p.precioMayoreo !== null && p.precioMayoreo !== undefined ? `$${p.precioMayoreo.toFixed(2)}` : 'Normal'}</td>
                     <td>{p.activo ? 'Activo' : 'Inactivo'}</td>
@@ -365,7 +375,7 @@ export default function Catalogo() {
                   </tr>
                 ))}
                 {productos.length === 0 && (
-                  <tr><td className="py-2 text-text/55" colSpan={8}>No hay productos aún.</td></tr>
+                  <tr><td className="py-2 text-text/55" colSpan={6}>No hay productos aún.</td></tr>
                 )}
               </tbody>
             </table>

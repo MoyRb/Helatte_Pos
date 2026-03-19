@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { FinishedStockMovement, Product, RawMaterial, Unit } from '../../../preload';
+import { buildProductLabel, buildProductMeta } from '../utils/productLabels';
 
 type ProductoConMov = Product & { stockMoves?: FinishedStockMovement[] };
 
@@ -34,6 +35,7 @@ export default function Inventario() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [vistaActiva, setVistaActiva] = useState<'materias' | 'terminados'>('terminados');
 
   const [modalMaterial, setModalMaterial] = useState(false);
   const [nuevoMaterial, setNuevoMaterial] = useState<{
@@ -169,14 +171,58 @@ export default function Inventario() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Inventarios</h2>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">Inventarios</h2>
+          <p className="text-sm text-text/65">Una sola vista para insumos y producto terminado, conectada con catálogo, producción y ventas.</p>
+        </div>
         {loading && <span className="text-sm text-text/65">Cargando...</span>}
       </div>
 
       {error && <div className="bg-blush/16 text-blushDeep px-3 py-2 rounded">{error}</div>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-text/50">Materias primas</p>
+          <p className="mt-2 text-2xl font-semibold">{materias.length}</p>
+          <p className="mt-1 text-sm text-text/60">Insumos con existencias y costo promedio.</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-text/50">Productos terminados</p>
+          <p className="mt-2 text-2xl font-semibold">{productos.length}</p>
+          <p className="mt-1 text-sm text-text/60">Mismos productos usados por catálogo, producción y POS.</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-text/50">Stock terminado total</p>
+          <p className="mt-2 text-2xl font-semibold">{productos.reduce((sum, producto) => sum + producto.stock, 0)}</p>
+          <p className="mt-1 text-sm text-text/60">Disponible para mostrador y mayoreo.</p>
+        </div>
+      </section>
+
+      <section className="card p-2">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'terminados', label: 'Producto terminado' },
+            { key: 'materias', label: 'Materia prima' }
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setVistaActiva(tab.key as 'materias' | 'terminados')}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                vistaActiva === tab.key
+                  ? 'bg-blush/20 text-text shadow-sm'
+                  : 'text-text/70 hover:bg-sky/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4">
+        {vistaActiva === 'materias' && (
         <section className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
@@ -232,12 +278,14 @@ export default function Inventario() {
             Últimos movimientos: {materias.reduce((sum, m) => sum + (m.movimientos?.length ?? 0), 0)} registros cargados.
           </div>
         </section>
+        )}
 
+        {vistaActiva === 'terminados' && (
         <section className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-lg">Producto terminado</h3>
-              <p className="text-sm text-text/65">Ajustes de stock y seguimiento de movimientos.</p>
+              <p className="text-sm text-text/65">Fuente única compartida con Catálogo, Producción y POS.</p>
             </div>
           </div>
 
@@ -247,7 +295,6 @@ export default function Inventario() {
                 <tr className="text-left text-text/65">
                   <th className="py-1">SKU</th>
                   <th className="py-1">Producto</th>
-                  <th className="py-1">Presentación</th>
                   <th className="py-1">Stock</th>
                   <th className="py-1">Precio</th>
                   <th className="py-1">Costo</th>
@@ -259,9 +306,11 @@ export default function Inventario() {
                   <tr key={p.id} className="border-b border-borderSoft/80">
                     <td className="py-2">{p.sku}</td>
                     <td className="py-2 font-medium">
-                      {p.tipo.nombre} de {p.sabor.nombre}
+                      <div>
+                        <p>{buildProductLabel(p)}</p>
+                        <p className="text-xs font-normal text-text/55">{buildProductMeta(p) || 'Sin metadatos adicionales'}</p>
+                      </div>
                     </td>
-                    <td className="py-2">{p.presentacion}</td>
                     <td className="py-2">{p.stock}</td>
                     <td className="py-2">${p.precio.toFixed(2)}</td>
                     <td className="py-2">${p.costo.toFixed(2)}</td>
@@ -286,6 +335,7 @@ export default function Inventario() {
             Movimientos recientes: {productos.reduce((sum, p) => sum + (p.stockMoves?.length ?? 0), 0)} registros cargados.
           </div>
         </section>
+        )}
       </div>
 
       <Modal open={modalMaterial} onClose={() => setModalMaterial(false)} title="Agregar material">
