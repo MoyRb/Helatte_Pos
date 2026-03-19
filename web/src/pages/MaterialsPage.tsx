@@ -71,7 +71,7 @@ export const MaterialsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Nombre
             <input
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               required
@@ -82,7 +82,7 @@ export const MaterialsPage: React.FC = () => {
             <input
               type="number"
               min={0}
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.stock}
               onChange={(e) => setForm((prev) => ({ ...prev, stock: Number(e.target.value) }))}
               required
@@ -93,7 +93,7 @@ export const MaterialsPage: React.FC = () => {
             <input
               type="number"
               min={0}
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.minStock}
               onChange={(e) => setForm((prev) => ({ ...prev, minStock: Number(e.target.value) }))}
               required
@@ -119,7 +119,7 @@ export const MaterialsPage: React.FC = () => {
               return (
                 <div
                   key={material.id}
-                  className={`border border-cream rounded-lg p-4 bg-white shadow-sm ${low ? 'ring-1 ring-blush/60' : ''}`}
+                  className={`border border-borderSoft rounded-lg p-4 bg-surface shadow-sm ${low ? 'ring-1 ring-blush/60' : ''}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -129,7 +129,7 @@ export const MaterialsPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          low ? 'bg-blush/40 text-coffee' : 'bg-cream text-coffee/80'
+                          low ? 'bg-blush/40 text-coffee' : 'bg-secondarySoft text-coffee/80'
                         }`}
                       >
                         Stock: {material.stock}
@@ -139,7 +139,7 @@ export const MaterialsPage: React.FC = () => {
                           const confirmed = window.confirm(`¿Eliminar ${material.name}? Se borrarán sus movimientos.`);
                           if (confirmed) deleteRawMaterial(material.id);
                         }}
-                        className="px-3 py-2 rounded-lg bg-cream text-coffee hover:bg-blush/50 text-xs font-semibold"
+                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
                       >
                         Eliminar
                       </button>
@@ -150,7 +150,7 @@ export const MaterialsPage: React.FC = () => {
                     <label className="flex flex-col gap-1 text-sm font-medium">
                       Movimiento
                       <select
-                        className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                        className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
                         value={movementForm.type}
                         onChange={(e) =>
                           setMovementForms((prev) => ({
@@ -168,7 +168,7 @@ export const MaterialsPage: React.FC = () => {
                       <input
                         type="number"
                         min={0}
-                        className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                        className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
                         value={movementForm.amount}
                         onChange={(e) =>
                           setMovementForms((prev) => ({
@@ -182,7 +182,7 @@ export const MaterialsPage: React.FC = () => {
                       Fecha
                       <input
                         type="date"
-                        className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                        className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
                         value={movementForm.date}
                         onChange={(e) =>
                           setMovementForms((prev) => ({
@@ -195,7 +195,7 @@ export const MaterialsPage: React.FC = () => {
                     <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
                       Nota
                       <input
-                        className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+                        className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
                         value={movementForm.note}
                         onChange={(e) =>
                           setMovementForms((prev) => ({
@@ -230,7 +230,7 @@ export const MaterialsPage: React.FC = () => {
             {lowStock.map((material) => (
               <div
                 key={material.id}
-                className="flex items-center justify-between bg-cream/70 border border-cream rounded-lg px-4 py-3"
+                className="flex items-center justify-between bg-secondarySoft/70 border border-borderSoft rounded-lg px-4 py-3"
               >
                 <div>
                   <p className="font-semibold">{material.name}</p>
@@ -242,14 +242,14 @@ export const MaterialsPage: React.FC = () => {
             {!lowStock.length && <p className="text-sm text-coffee/70">Sin alertas por ahora.</p>}
           </div>
 
-          <div className="border-t border-cream pt-3 space-y-2">
+          <div className="border-t border-borderSoft pt-3 space-y-2">
             <h3 className="text-sm font-semibold text-coffee">Movimientos recientes</h3>
             {sortedMovements.map((movement) => {
               const materialName = rawMaterials.find((item) => item.id === movement.materialId)?.name ?? 'Materia prima';
               return (
                 <div
                   key={movement.id}
-                  className="flex items-center justify-between bg-white border border-cream rounded-lg px-3 py-2 text-sm"
+                  className="flex items-center justify-between bg-surface border border-borderSoft rounded-lg px-3 py-2 text-sm"
                 >
                   <div>
                     <p className="font-semibold">{materialName}</p>

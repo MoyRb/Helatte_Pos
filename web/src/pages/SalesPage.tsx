@@ -36,14 +36,14 @@ export const SalesPage: React.FC = () => {
         {sortedSales.map((sale) => {
           const isExpanded = expandedSaleId === sale.id;
           return (
-            <div key={sale.id} className="border border-cream rounded-lg p-4 bg-white shadow-sm">
+            <div key={sale.id} className="border border-borderSoft rounded-lg p-4 bg-surface shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <p className="text-sm text-coffee/70">{formatDate(sale.date)}</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-lg">Total: ${sale.total.toFixed(2)}</p>
                     {sale.folio && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-cream text-coffee/80">Folio: {sale.folio}</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-secondarySoft text-coffee/80">Folio: {sale.folio}</span>
                     )}
                     <span className="text-xs px-2 py-1 rounded-full bg-mint/20 text-coffee font-semibold uppercase">
                       {sale.channel === 'wholesale' ? 'Mayoreo' : 'POS'}
@@ -59,7 +59,7 @@ export const SalesPage: React.FC = () => {
                 </div>
                 <button
                   onClick={() => toggleExpanded(sale.id)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-cream text-coffee hover:bg-blush/40"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/40"
                 >
                   <EyeIcon className="h-5 w-5" />
                   {isExpanded ? 'Ocultar detalle' : 'Ver detalle'}
@@ -68,14 +68,14 @@ export const SalesPage: React.FC = () => {
               </div>
 
               {isExpanded && (
-                <div className="mt-4 border-t border-cream pt-3">
+                <div className="mt-4 border-t border-borderSoft pt-3">
                   <div className="grid grid-cols-1 md:grid-cols-4 text-xs text-coffee/70 font-semibold pb-2">
                     <span>Producto</span>
                     <span className="md:text-center">Cantidad</span>
                     <span className="md:text-right">Precio unitario</span>
                     <span className="md:text-right">Subtotal</span>
                   </div>
-                  <div className="divide-y divide-cream text-sm">
+                  <div className="divide-y divide-borderSoft text-sm">
                     {sale.items.map((item) => (
                       <div key={item.productId} className="grid grid-cols-1 md:grid-cols-4 py-2">
                         <span className="font-medium">{item.name}</span>

@@ -87,7 +87,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Nombre
             <input
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               required
@@ -96,7 +96,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium">
             Teléfono
             <input
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.phone}
               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
               placeholder="Opcional"
@@ -105,7 +105,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Dirección
             <input
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.address}
               onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
               placeholder="Opcional"
@@ -114,7 +114,7 @@ export const ClientsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium">
             Notas
             <input
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.notes}
               onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
             />
@@ -150,11 +150,11 @@ export const ClientsPage: React.FC = () => {
                 <th className="pb-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-cream">
+            <tbody className="divide-y divide-borderSoft">
               {sortedClients.map((client) => (
                 <tr
                   key={client.id}
-                  className={`hover:bg-cream/60 ${selectedClientId === client.id ? 'bg-cream/50' : ''}`}
+                  className={`hover:bg-secondarySoft/60 ${selectedClientId === client.id ? 'bg-secondarySoft/50' : ''}`}
                   onClick={() => setSelectedClientId(client.id)}
                 >
                   <td className="py-3 font-medium">{client.name}</td>
@@ -179,13 +179,13 @@ export const ClientsPage: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(client)}
-                        className="px-3 py-2 rounded-lg bg-cream text-coffee hover:bg-blush/50 text-xs font-semibold"
+                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => deleteClient(client.id)}
-                        className="px-3 py-2 rounded-lg bg-cream text-coffee hover:bg-blush/50 text-xs font-semibold"
+                        className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50 text-xs font-semibold"
                       >
                         Eliminar
                       </button>
@@ -210,15 +210,15 @@ export const ClientsPage: React.FC = () => {
           <h2 className="text-xl font-semibold">Detalle del cliente</h2>
           <div className="flex items-center gap-2 text-sm text-coffee/70">
             <span className="font-semibold">Refris del cliente</span>
-            <div className="flex rounded-lg overflow-hidden border border-cream text-xs font-semibold">
+            <div className="flex rounded-lg overflow-hidden border border-borderSoft text-xs font-semibold">
               <button
-                className={`px-3 py-1 ${showActiveOnly ? 'bg-mint/20 text-accent' : 'bg-white text-coffee'}`}
+                className={`px-3 py-1 ${showActiveOnly ? 'bg-mint/20 text-accent' : 'bg-surface text-coffee'}`}
                 onClick={() => setShowActiveOnly(true)}
               >
                 Activos
               </button>
               <button
-                className={`px-3 py-1 ${!showActiveOnly ? 'bg-mint/20 text-accent' : 'bg-white text-coffee'}`}
+                className={`px-3 py-1 ${!showActiveOnly ? 'bg-mint/20 text-accent' : 'bg-surface text-coffee'}`}
                 onClick={() => setShowActiveOnly(false)}
               >
                 Todos
@@ -264,7 +264,7 @@ export const ClientsPage: React.FC = () => {
                 .map((loan) => (
                   <div
                     key={loan.id}
-                    className="border border-cream rounded-lg p-4 bg-white shadow-sm flex flex-wrap items-center justify-between gap-4"
+                    className="border border-borderSoft rounded-lg p-4 bg-surface shadow-sm flex flex-wrap items-center justify-between gap-4"
                   >
                     <div>
                       <p className="text-xs text-coffee/70">Entrega: {new Date(loan.deliveryDate).toLocaleDateString()}</p>
