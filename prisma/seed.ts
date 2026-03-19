@@ -120,6 +120,8 @@ const registrarVenta = async (data: {
 };
 
 async function main() {
+  await prisma.productionPlanItem.deleteMany();
+  await prisma.productionPlan.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.saleItem.deleteMany();
   await prisma.sale.deleteMany();

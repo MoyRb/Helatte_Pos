@@ -200,16 +200,16 @@ const columnExists = async (
   table: string,
   column: string
 ): Promise<boolean> => {
-  const rows = await prismaClient.$queryRawUnsafe<SqliteColumnInfo[]>(
+  const rows = (await prismaClient.$queryRawUnsafe(
     `PRAGMA table_info('${table}')`
-  )
+  )) as SqliteColumnInfo[]
   return rows.some((row) => row.name === column)
 }
 
 const tableExists = async (prismaClient: PrismaClient, table: string): Promise<boolean> => {
-  const rows = await prismaClient.$queryRawUnsafe<SqliteTableInfo[]>(
+  const rows = (await prismaClient.$queryRawUnsafe(
     `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}'`
-  )
+  )) as SqliteTableInfo[]
   return rows.length > 0
 }
 
@@ -295,6 +295,48 @@ const ensurePosWholesaleColumns = async (prismaClient: PrismaClient) => {
        ELSE "subtotalLinea"
      END`
   )
+}
+
+const ensureProductionTables = async (prismaClient: PrismaClient) => {
+  await prismaClient.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ProductionPlan" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "fecha" DATETIME NOT NULL,
+      "notas" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  await prismaClient.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "ProductionPlan_fecha_key"
+    ON "ProductionPlan"("fecha")
+  `)
+
+  await prismaClient.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ProductionPlanItem" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "planId" INTEGER NOT NULL,
+      "productId" INTEGER,
+      "nombre" TEXT NOT NULL,
+      "presentacion" TEXT NOT NULL,
+      "cantidadBase" INTEGER NOT NULL DEFAULT 0,
+      "cantidadAjuste" INTEGER NOT NULL DEFAULT 0,
+      "orden" INTEGER NOT NULL DEFAULT 0,
+      CONSTRAINT "ProductionPlanItem_planId_fkey" FOREIGN KEY ("planId") REFERENCES "ProductionPlan" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "ProductionPlanItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    )
+  `)
+
+  await prismaClient.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "productionplanitem_plan_idx"
+    ON "ProductionPlanItem"("planId")
+  `)
+
+  await prismaClient.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "productionplanitem_product_idx"
+    ON "ProductionPlanItem"("productId")
+  `)
 }
 
 const markDatabaseIncompatible = (reason: string) => {
@@ -387,9 +429,13 @@ const promptDatabaseReset = async (missing: string[], reason: string): Promise<b
 }
 
 const handlePrismaError = async (error: unknown, channel?: string): Promise<string> => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2021' || error.code === 'P2022') {
-      const reason = `Base de datos desactualizada (Prisma ${error.code}).`
+  const prismaErrorCode =
+    error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : null
+
+  if (prismaErrorCode === 'P2021' || prismaErrorCode === 'P2022') {
+      const reason = `Base de datos desactualizada (Prisma ${prismaErrorCode}).`
       markDatabaseIncompatible(reason)
 
       try {
@@ -400,7 +446,6 @@ const handlePrismaError = async (error: unknown, channel?: string): Promise<stri
       }
 
       return reason
-    }
   }
 
   if (error instanceof Error) {
@@ -416,6 +461,7 @@ const ensureDatabaseSchema = async (): Promise<boolean> => {
   try {
     const prismaClient = getPrisma()
     await ensurePosWholesaleColumns(prismaClient)
+    await ensureProductionTables(prismaClient)
     const missing = await checkDatabaseCompatibility(prismaClient)
 
     if (missing.length === 0) {
@@ -657,6 +703,248 @@ const getDayRange = (value: Date) => {
   const end = new Date(start)
   end.setDate(end.getDate() + 1)
   return { start, end }
+}
+
+
+type ProductionPlanItemPayload = {
+  id?: number
+  productId?: number | null
+  nombre: string
+  presentacion: string
+  cantidadBase: number
+  cantidadAjuste: number
+  cantidadFinal: number
+  orden: number
+  esManual: boolean
+}
+
+type ProductionPlanPayload = {
+  id?: number
+  fecha: string
+  notas: string
+  createdAt?: string
+  updatedAt?: string
+  items: ProductionPlanItemPayload[]
+}
+
+type ProductionSourcePayload = {
+  saleId: number
+  folio: string
+  customerName: string | null
+  total: number
+}
+
+type ProductionPlanResponse = {
+  plan: ProductionPlanPayload | null
+  draft: ProductionPlanPayload
+  basedOnWholesaleSales: boolean
+  wholesaleSalesCount: number
+  wholesaleSources: ProductionSourcePayload[]
+}
+
+const normalizePlanDate = (value?: string | Date | null) => {
+  let date: Date
+
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number)
+    date = new Date(year, month - 1, day)
+  } else {
+    date = value ? new Date(value) : new Date()
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('Selecciona una fecha válida para producción.')
+  }
+
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+const formatPlanDateInput = (value: Date) => {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatProductionDate = (value: Date) =>
+  new Intl.DateTimeFormat('es-MX', {
+    dateStyle: 'full'
+  }).format(value)
+
+const sanitizeProductionItems = (items: ProductionPlanItemPayload[]) =>
+  items
+    .map((item, index) => {
+      const cantidadBase = Math.round(Number(item.cantidadBase ?? 0))
+      const cantidadFinal = Math.max(0, Math.round(Number(item.cantidadFinal ?? 0)))
+      const cantidadAjuste = cantidadFinal - cantidadBase
+      return {
+        productId: item.productId ?? null,
+        nombre: String(item.nombre ?? '').trim(),
+        presentacion: String(item.presentacion ?? '').trim(),
+        cantidadBase: Number.isFinite(cantidadBase) ? cantidadBase : 0,
+        cantidadAjuste: Number.isFinite(cantidadAjuste) ? cantidadAjuste : 0,
+        cantidadFinal: Number.isFinite(cantidadFinal) ? cantidadFinal : 0,
+        orden: Number.isFinite(Number(item.orden)) ? Number(item.orden) : index
+      }
+    })
+    .filter((item) => item.cantidadFinal > 0 && item.nombre && item.presentacion)
+
+const serializeProductionPlan = (plan: {
+  id: number
+  fecha: Date
+  notas: string | null
+  createdAt: Date
+  updatedAt: Date
+  items: {
+    id: number
+    productId: number | null
+    nombre: string
+    presentacion: string
+    cantidadBase: number
+    cantidadAjuste: number
+    orden: number
+  }[]
+}): ProductionPlanPayload => ({
+  id: plan.id,
+  fecha: formatPlanDateInput(plan.fecha),
+  notas: plan.notas ?? '',
+  createdAt: plan.createdAt.toISOString(),
+  updatedAt: plan.updatedAt.toISOString(),
+  items: plan.items
+    .slice()
+    .sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, 'es-MX'))
+    .map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      nombre: item.nombre,
+      presentacion: item.presentacion,
+      cantidadBase: item.cantidadBase,
+      cantidadAjuste: item.cantidadAjuste,
+      cantidadFinal: item.cantidadBase + item.cantidadAjuste,
+      orden: item.orden,
+      esManual: item.productId == null
+    }))
+})
+
+const consolidateWholesaleProduction = async (
+  prismaClient: PrismaClient,
+  fecha: Date
+): Promise<{ items: ProductionPlanItemPayload[]; sources: ProductionSourcePayload[] }> => {
+  const { start, end } = getDayRange(fecha)
+  const sales = await prismaClient.sale.findMany({
+    where: {
+      tipoVenta: 'MAYOREO',
+      fecha: {
+        gte: start,
+        lt: end
+      }
+    },
+    orderBy: [{ fecha: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      folio: true,
+      total: true,
+      customerId: true,
+      items: {
+        select: {
+          productId: true,
+          cantidad: true,
+          product: {
+            select: {
+              tipo: { select: { nombre: true } },
+              sabor: { select: { nombre: true } },
+              presentacion: true
+            }
+          }
+        }
+      }
+    }
+  })
+
+  const customerIds = sales
+    .map((sale) => sale.customerId)
+    .filter((value): value is number => value !== null)
+  const customers = customerIds.length
+    ? await prismaClient.customer.findMany({
+        where: { id: { in: customerIds } },
+        select: { id: true, nombre: true }
+      })
+    : []
+  const customerMap = new Map(customers.map((customer) => [customer.id, customer.nombre]))
+
+  const totals = new Map<string, ProductionPlanItemPayload>()
+
+  for (const sale of sales) {
+    for (const item of sale.items) {
+      const key = `${item.productId}::${item.product.presentacion}`
+      const current = totals.get(key)
+      const nombre = `${item.product.tipo.nombre} ${item.product.sabor.nombre}`.trim()
+      if (current) {
+        current.cantidadBase += item.cantidad
+        current.cantidadFinal += item.cantidad
+      } else {
+        totals.set(key, {
+          productId: item.productId,
+          nombre,
+          presentacion: item.product.presentacion,
+          cantidadBase: item.cantidad,
+          cantidadAjuste: 0,
+          cantidadFinal: item.cantidad,
+          orden: totals.size,
+          esManual: false
+        })
+      }
+    }
+  }
+
+  return {
+    items: Array.from(totals.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es-MX')),
+    sources: sales.map((sale) => ({
+      saleId: sale.id,
+      folio: sale.folio,
+      customerName: sale.customerId ? customerMap.get(sale.customerId) ?? null : null,
+      total: sale.total
+    }))
+  }
+}
+
+const buildProductionDraft = async (
+  prismaClient: PrismaClient,
+  fecha: Date
+): Promise<ProductionPlanResponse> => {
+  const plan = await prismaClient.productionPlan.findUnique({
+    where: { fecha },
+    include: {
+      items: {
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }]
+      }
+    }
+  })
+
+  const consolidated = await consolidateWholesaleProduction(prismaClient, fecha)
+
+  if (plan) {
+    return {
+      plan: serializeProductionPlan(plan),
+      draft: serializeProductionPlan(plan),
+      basedOnWholesaleSales: consolidated.items.length > 0,
+      wholesaleSalesCount: consolidated.sources.length,
+      wholesaleSources: consolidated.sources
+    }
+  }
+
+  return {
+    plan: null,
+    draft: {
+      fecha: formatPlanDateInput(fecha),
+      notas: '',
+      items: consolidated.items
+    },
+    basedOnWholesaleSales: consolidated.items.length > 0,
+    wholesaleSalesCount: consolidated.sources.length,
+    wholesaleSources: consolidated.sources
+  }
 }
 
 const formatFolioDate = (value: Date) => {
@@ -1162,6 +1450,164 @@ const openPrintPreviewWindow = async (receipt: PosReceiptData) => {
       printBackground: true
     })
   }, 250)
+}
+
+type ProductionPrintData = ProductionPlanPayload & {
+  titulo: string
+}
+
+const openHtmlPrintWindow = async (title: string, html: string) => {
+  const parentWindow = mainWindow ?? (await createWindow())
+  const printWindow = new BrowserWindow({
+    width: 960,
+    height: 780,
+    title,
+    backgroundColor: '#FFF6FA',
+    autoHideMenuBar: true,
+    parent: parentWindow,
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: false
+    }
+  })
+
+  printWindow.once('ready-to-show', () => {
+    printWindow.show()
+    printWindow.focus()
+  })
+
+  await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+  setTimeout(() => {
+    if (printWindow.isDestroyed()) return
+    printWindow.webContents.print({
+      silent: false,
+      printBackground: true
+    })
+  }, 250)
+}
+
+const buildProductionPrintHtml = (plan: ProductionPrintData) => {
+  const logoDataUrl = getReceiptLogoDataUrl()
+  const fecha = formatProductionDate(normalizePlanDate(plan.fecha))
+  const rows = plan.items
+    .map((item) => {
+      const ajuste = item.cantidadAjuste === 0 ? '—' : item.cantidadAjuste > 0 ? `+${item.cantidadAjuste}` : `${item.cantidadAjuste}`
+      return `
+        <tr>
+          <td>
+            <div class="product-name">${escapeHtml(item.nombre)}</div>
+            <div class="product-meta">${escapeHtml(item.presentacion)}</div>
+          </td>
+          <td class="center">${item.cantidadBase}</td>
+          <td class="center">${escapeHtml(ajuste)}</td>
+          <td class="center strong">${item.cantidadFinal}</td>
+        </tr>
+      `
+    })
+    .join('')
+
+  return `<!doctype html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <title>${escapeHtml(plan.titulo)}</title>
+      <style>
+        :root {
+          color-scheme: light;
+          --ink: #2f3133;
+          --muted: #6b7280;
+          --line: #d9ddd6;
+          --accent: #df9fc3;
+          --accent-soft: rgba(223, 159, 195, 0.12);
+          --sky: #a7cce5;
+          --paper: #fffdfc;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #f4f1ef; color: var(--ink); font-family: Inter, Arial, sans-serif; padding: 24px; }
+        .sheet { width: 100%; max-width: 860px; margin: 0 auto; background: var(--paper); border: 1px solid rgba(217, 221, 214, 0.9); border-radius: 24px; padding: 28px 32px 32px; box-shadow: 0 20px 60px rgba(47, 49, 51, 0.12); }
+        .topbar { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+        .brand { display: flex; gap: 16px; align-items: center; }
+        .logo { width: 76px; height: 76px; border-radius: 20px; border: 1px solid rgba(217, 221, 214, 0.9); background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px; }
+        .logo img { width: 100%; height: 100%; object-fit: contain; }
+        .eyebrow { display: inline-block; background: var(--accent-soft); color: #8f4471; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px; }
+        h1, h2, p { margin: 0; }
+        h1 { font-size: 30px; line-height: 1.05; }
+        .subtitle { color: var(--muted); margin-top: 6px; }
+        .document-title { text-align: right; }
+        .document-title h2 { font-size: 28px; margin-bottom: 8px; }
+        .date-pill { display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(167, 204, 229, 0.7); background: rgba(167, 204, 229, 0.16); border-radius: 999px; padding: 8px 14px; font-weight: 700; }
+        .meta-card { border: 1px solid rgba(217, 221, 214, 0.9); border-radius: 18px; padding: 14px 16px; background: white; margin-top: 22px; }
+        .meta-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+        .meta-value { font-size: 15px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+        thead th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 12px 10px; background: rgba(167, 204, 229, 0.12); border-bottom: 1px solid var(--line); }
+        tbody td { padding: 14px 10px; border-bottom: 1px solid rgba(217, 221, 214, 0.7); vertical-align: top; font-size: 14px; }
+        .product-name { font-weight: 600; margin-bottom: 4px; }
+        .product-meta { color: var(--muted); font-size: 12px; }
+        .center { text-align: center; }
+        .strong { font-weight: 700; }
+        .notes { margin-top: 24px; padding: 16px 18px; border-radius: 18px; background: rgba(223, 159, 195, 0.08); border: 1px dashed rgba(223, 159, 195, 0.5); color: #5e5660; font-size: 13px; min-height: 82px; white-space: pre-wrap; }
+        .review-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 56px; }
+        .review-box { padding-top: 12px; border-top: 1px solid var(--ink); text-align: center; font-size: 13px; color: var(--muted); min-height: 36px; }
+        @media print { body { background: white; padding: 0; } .sheet { border: none; border-radius: 0; box-shadow: none; max-width: none; padding: 0.4in; } }
+      </style>
+    </head>
+    <body>
+      <main class="sheet">
+        <section class="topbar">
+          <div class="brand">
+            <div class="logo">
+              ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo Helatte" />` : `<div style="font-weight:700;color:#8f4471;">HLT</div>`}
+            </div>
+            <div>
+              <span class="eyebrow">Producción diaria</span>
+              <h1>${escapeHtml(HELATTE_BUSINESS.nombre)}</h1>
+              <p class="subtitle">${escapeHtml(HELATTE_BUSINESS.giro)}</p>
+            </div>
+          </div>
+          <div class="document-title">
+            <h2>Plan de producción</h2>
+            <div class="date-pill">${escapeHtml(fecha)}</div>
+          </div>
+        </section>
+
+        <section class="meta-card">
+          <div class="meta-label">Resumen</div>
+          <div class="meta-value">${plan.items.length} renglones · ${plan.items.reduce((sum, item) => sum + item.cantidadFinal, 0)} piezas / unidades planeadas</div>
+        </section>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th class="center">Base</th>
+              <th class="center">Ajuste</th>
+              <th class="center">Total</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <section class="notes">${escapeHtml(plan.notas || 'Sin notas operativas para este plan.')}</section>
+
+        <section class="review-grid">
+          <div class="review-box">Revisó</div>
+          <div class="review-box">Checklist / OK</div>
+          <div class="review-box">Firma</div>
+        </section>
+      </main>
+    </body>
+  </html>`
+}
+
+const openProductionPrintWindow = async (plan: ProductionPlanPayload) => {
+  const html = buildProductionPrintHtml({
+    ...plan,
+    titulo: `Plan de producción ${plan.fecha}`
+  })
+  await openHtmlPrintWindow(`Plan de producción ${plan.fecha}`, html)
 }
 
 /* =========================================================
@@ -2146,6 +2592,104 @@ safeHandle('pos:imprimirRemision', async (_event, saleId: number) => {
   const prisma = getPrisma()
   const receipt = await getPosReceiptBySaleId(prisma, saleId)
   await openPrintPreviewWindow(receipt)
+  return { ok: true }
+})
+
+safeHandle('produccion:obtenerPlan', async (_event, fecha: string) => {
+  const prisma = getPrisma()
+  return buildProductionDraft(prisma, normalizePlanDate(fecha))
+})
+
+safeHandle('produccion:reconsolidar', async (_event, fecha: string) => {
+  const prisma = getPrisma()
+  const targetDate = normalizePlanDate(fecha)
+  const consolidated = await consolidateWholesaleProduction(prisma, targetDate)
+
+  return {
+    plan: null,
+    draft: {
+      fecha: formatPlanDateInput(targetDate),
+      notas: '',
+      items: consolidated.items
+    },
+    basedOnWholesaleSales: consolidated.items.length > 0,
+    wholesaleSalesCount: consolidated.sources.length,
+    wholesaleSources: consolidated.sources
+  }
+})
+
+safeHandle(
+  'produccion:guardarPlan',
+  async (
+    _event,
+    data: { fecha: string; notas?: string; items: ProductionPlanItemPayload[] }
+  ) => {
+    const prisma = getPrisma()
+    const fecha = normalizePlanDate(data.fecha)
+    const items = sanitizeProductionItems(data.items ?? [])
+
+    const saved = await prisma.$transaction(async (tx) => {
+      const plan = await tx.productionPlan.upsert({
+        where: { fecha },
+        update: {
+          notas: (data.notas ?? '').trim(),
+          updatedAt: new Date()
+        },
+        create: {
+          fecha,
+          notas: (data.notas ?? '').trim()
+        }
+      })
+
+      await tx.productionPlanItem.deleteMany({
+        where: { planId: plan.id }
+      })
+
+      if (items.length > 0) {
+        await tx.productionPlanItem.createMany({
+          data: items.map((item, index) => ({
+            planId: plan.id,
+            productId: item.productId,
+            nombre: item.nombre,
+            presentacion: item.presentacion,
+            cantidadBase: item.cantidadBase,
+            cantidadAjuste: item.cantidadAjuste,
+            orden: index
+          }))
+        })
+      }
+
+      return tx.productionPlan.findUniqueOrThrow({
+        where: { id: plan.id },
+        include: {
+          items: {
+            orderBy: [{ orden: 'asc' }, { id: 'asc' }]
+          }
+        }
+      })
+    })
+
+    return serializeProductionPlan(saved)
+  }
+)
+
+safeHandle('produccion:imprimir', async (_event, fecha: string) => {
+  const prisma = getPrisma()
+  const targetDate = normalizePlanDate(fecha)
+  const plan = await prisma.productionPlan.findUnique({
+    where: { fecha: targetDate },
+    include: {
+      items: {
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }]
+      }
+    }
+  })
+
+  if (!plan) {
+    throw new Error('Guarda el plan de producción antes de imprimirlo.')
+  }
+
+  await openProductionPrintWindow(serializeProductionPlan(plan))
   return { ok: true }
 })
 
