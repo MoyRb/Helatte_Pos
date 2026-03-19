@@ -13,11 +13,11 @@ type ModalProps = {
 function Modal({ open, onClose, children, title }: ModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 space-y-4">
+    <div className="fixed inset-0 bg-text/24 flex items-center justify-center z-20">
+      <div className="modal-panel w-full max-w-lg p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button className="text-gray-500 hover:text-black" onClick={onClose}>
+          <button className="text-text/55 hover:text-text" onClick={onClose}>
             ✕
           </button>
         </div>
@@ -171,21 +171,21 @@ export default function Inventario() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Inventarios</h2>
-        {loading && <span className="text-sm text-gray-600">Cargando...</span>}
+        {loading && <span className="text-sm text-text/65">Cargando...</span>}
       </div>
 
-      {error && <div className="bg-red-100 text-red-800 px-3 py-2 rounded">{error}</div>}
+      {error && <div className="bg-blush/16 text-blushDeep px-3 py-2 rounded">{error}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <section className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-lg">Materia prima</h3>
-              <p className="text-sm text-gray-600">Control de insumos y costo promedio.</p>
+              <p className="text-sm text-text/65">Control de insumos y costo promedio.</p>
             </div>
             <div className="flex gap-2">
               <button
-                className="px-3 py-1 bg-primary text-black rounded hover:bg-primary/80"
+                className="btn btn-primary px-3 py-1.5"
                 onClick={() => setModalMaterial(true)}
               >
                 Agregar material
@@ -194,9 +194,9 @@ export default function Inventario() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="table">
               <thead>
-                <tr className="text-left text-gray-600">
+                <tr className="text-left text-text/65">
                   <th className="py-1">Material</th>
                   <th className="py-1">Unidad</th>
                   <th className="py-1">Stock</th>
@@ -206,14 +206,14 @@ export default function Inventario() {
               </thead>
               <tbody>
                 {materias.map((m) => (
-                  <tr key={m.id} className="border-b border-secondary/50">
+                  <tr key={m.id} className="border-b border-borderSoft/80">
                     <td className="py-2 font-medium">{m.nombre}</td>
                     <td className="py-2">{m.unidad.nombre}</td>
                     <td className="py-2">{m.stock.toFixed(2)}</td>
                     <td className="py-2">${m.costoProm.toFixed(2)}</td>
                     <td className="py-2 text-right">
                       <button
-                        className="text-primary hover:underline text-sm"
+                        className="text-blushDeep hover:underline text-sm"
                         onClick={() => {
                           setMovMaterial({ materialId: m.id, tipo: 'entrada', cantidad: 0, costoTotal: 0 });
                           setModalMovMaterial(true);
@@ -228,7 +228,7 @@ export default function Inventario() {
             </table>
           </div>
 
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-text/55">
             Últimos movimientos: {materias.reduce((sum, m) => sum + (m.movimientos?.length ?? 0), 0)} registros cargados.
           </div>
         </section>
@@ -237,14 +237,14 @@ export default function Inventario() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-lg">Producto terminado</h3>
-              <p className="text-sm text-gray-600">Ajustes de stock y seguimiento de movimientos.</p>
+              <p className="text-sm text-text/65">Ajustes de stock y seguimiento de movimientos.</p>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="table">
               <thead>
-                <tr className="text-left text-gray-600">
+                <tr className="text-left text-text/65">
                   <th className="py-1">SKU</th>
                   <th className="py-1">Producto</th>
                   <th className="py-1">Presentación</th>
@@ -256,7 +256,7 @@ export default function Inventario() {
               </thead>
               <tbody>
                 {productos.map((p) => (
-                  <tr key={p.id} className="border-b border-secondary/50">
+                  <tr key={p.id} className="border-b border-borderSoft/80">
                     <td className="py-2">{p.sku}</td>
                     <td className="py-2 font-medium">
                       {p.tipo.nombre} de {p.sabor.nombre}
@@ -267,7 +267,7 @@ export default function Inventario() {
                     <td className="py-2">${p.costo.toFixed(2)}</td>
                     <td className="py-2 text-right">
                       <button
-                        className="text-primary hover:underline text-sm"
+                        className="text-blushDeep hover:underline text-sm"
                         onClick={() => {
                           setMovProducto({ productId: p.id, tipo: 'entrada', cantidad: 0, referencia: '' });
                           setModalMovProducto(true);
@@ -282,7 +282,7 @@ export default function Inventario() {
             </table>
           </div>
 
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-text/55">
             Movimientos recientes: {productos.reduce((sum, p) => sum + (p.stockMoves?.length ?? 0), 0)} registros cargados.
           </div>
         </section>
@@ -338,11 +338,11 @@ export default function Inventario() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button className="px-3 py-1 rounded border" onClick={() => setModalMaterial(false)}>
+            <button className="btn btn-ghost px-3 py-1.5" onClick={() => setModalMaterial(false)}>
               Cancelar
             </button>
             <button
-              className="px-3 py-1 bg-primary text-black rounded disabled:opacity-50"
+              className="btn btn-primary px-3 py-1.5 disabled:opacity-50"
               disabled={saving}
               onClick={() => void crearMaterial()}
             >
@@ -355,7 +355,7 @@ export default function Inventario() {
       <Modal open={modalMovMaterial} onClose={() => setModalMovMaterial(false)} title="Registrar movimiento">
         <div className="space-y-3">
           <div>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-text/75">
               {selectedMaterial ? `Material: ${selectedMaterial.nombre}` : 'Selecciona un material'}
             </p>
           </div>
@@ -397,11 +397,11 @@ export default function Inventario() {
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <button className="px-3 py-1 rounded border" onClick={() => setModalMovMaterial(false)}>
+            <button className="btn btn-ghost px-3 py-1.5" onClick={() => setModalMovMaterial(false)}>
               Cancelar
             </button>
             <button
-              className="px-3 py-1 bg-primary text-black rounded disabled:opacity-50"
+              className="btn btn-primary px-3 py-1.5 disabled:opacity-50"
               disabled={saving}
               onClick={() => void registrarMovimientoMateria()}
             >
@@ -414,7 +414,7 @@ export default function Inventario() {
       <Modal open={modalMovProducto} onClose={() => setModalMovProducto(false)} title="Ajuste de stock">
         <div className="space-y-3">
           <div>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-text/75">
               {selectedProducto
                 ? `Producto: ${selectedProducto.tipo.nombre} de ${selectedProducto.sabor.nombre}`
                 : 'Selecciona un producto'}
@@ -454,11 +454,11 @@ export default function Inventario() {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button className="px-3 py-1 rounded border" onClick={() => setModalMovProducto(false)}>
+            <button className="btn btn-ghost px-3 py-1.5" onClick={() => setModalMovProducto(false)}>
               Cancelar
             </button>
             <button
-              className="px-3 py-1 bg-primary text-black rounded disabled:opacity-50"
+              className="btn btn-primary px-3 py-1.5 disabled:opacity-50"
               disabled={saving}
               onClick={() => void registrarMovimientoProducto()}
             >

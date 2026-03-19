@@ -176,18 +176,18 @@ export default function Creditos() {
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Créditos y pagarés</h2>
 
-      {errorActivo && <div className="rounded bg-red-100 text-red-700 px-3 py-2 text-sm">{errorActivo}</div>}
-      {mensaje && <div className="rounded bg-emerald-100 text-emerald-700 px-3 py-2 text-sm">{mensaje}</div>}
+      {errorActivo && <div className="rounded bg-blush/16 text-blushDeep px-3 py-2 text-sm">{errorActivo}</div>}
+      {mensaje && <div className="rounded-xl border border-mint/35 bg-mint/20 text-mintDeep px-3 py-2 text-sm">{mensaje}</div>}
 
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="font-medium">Clientes con saldo</p>
-          {cargandoClientes && <span className="text-xs text-gray-500">Cargando...</span>}
+          {cargandoClientes && <span className="text-xs text-text/55">Cargando...</span>}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="table">
             <thead>
-              <tr className="text-left text-gray-600">
+              <tr className="text-left text-text/65">
                 <th className="py-1">Cliente</th>
                 <th className="py-1">Saldo</th>
                 <th className="py-1">Límite</th>
@@ -198,13 +198,13 @@ export default function Creditos() {
             <tbody>
               {clientesConSaldo.length === 0 && !cargandoClientes && (
                 <tr>
-                  <td className="py-2 text-gray-500" colSpan={5}>
+                  <td className="py-2 text-text/55" colSpan={5}>
                     No hay clientes con saldo pendiente.
                   </td>
                 </tr>
               )}
               {clientesConSaldo.map((c) => (
-                <tr key={c.id} className="border-b border-secondary/50">
+                <tr key={c.id} className="border-b border-borderSoft/80">
                   <td className="py-2">{c.nombre}</td>
                   <td>${c.saldo.toFixed(2)}</td>
                   <td>${c.limite.toFixed(2)}</td>
@@ -212,13 +212,13 @@ export default function Creditos() {
                   <td className="py-2">
                     <div className="flex gap-2">
                       <button
-                        className="px-3 py-1 text-xs rounded bg-secondary/40 hover:bg-secondary/60"
+                        className="btn btn-secondary px-3 py-1 text-xs"
                         onClick={() => seleccionarCliente(c)}
                       >
                         Ver pagarés
                       </button>
                       <button
-                        className="px-3 py-1 text-xs rounded bg-primary hover:bg-primary/80 text-black"
+                        className="px-3 py-1 text-xs rounded btn btn-primary"
                         onClick={() => abrirModalPagare(c)}
                       >
                         Generar pagaré
@@ -230,7 +230,7 @@ export default function Creditos() {
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-500">El pagaré inicia vigente y no descuenta el saldo.</p>
+        <p className="text-xs text-text/55">El pagaré inicia vigente y no descuenta el saldo.</p>
       </div>
 
       <div className="card p-4 space-y-3">
@@ -239,23 +239,23 @@ export default function Creditos() {
             Pagarés {clienteSeleccionado ? `de ${clienteSeleccionado.nombre}` : 'por cliente'}
           </p>
           {clienteSeleccionado && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text/55">
               Saldo disponible: ${clienteSeleccionado.saldo.toFixed(2)}
             </span>
           )}
         </div>
-        {!clienteSeleccionado && <p className="text-sm text-gray-500">Selecciona un cliente para ver sus pagarés.</p>}
+        {!clienteSeleccionado && <p className="text-sm text-text/55">Selecciona un cliente para ver sus pagarés.</p>}
         {clienteSeleccionado && (
           <div className="overflow-x-auto">
             {cargandoPagares ? (
-              <p className="text-sm text-gray-500">Cargando pagarés...</p>
+              <p className="text-sm text-text/55">Cargando pagarés...</p>
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Pagarés vigentes</p>
-                  <table className="w-full text-sm">
+                  <table className="table">
                     <thead>
-                      <tr className="text-left text-gray-600">
+                      <tr className="text-left text-text/65">
                         <th className="py-1">Monto pendiente</th>
                         <th className="py-1">Fecha</th>
                         <th className="py-1">Abonos</th>
@@ -265,26 +265,26 @@ export default function Creditos() {
                     <tbody>
                       {pagaresVigentes.length === 0 && (
                         <tr>
-                          <td className="py-2 text-gray-500" colSpan={4}>
+                          <td className="py-2 text-text/55" colSpan={4}>
                             No hay pagarés vigentes para este cliente.
                           </td>
                         </tr>
                       )}
                       {pagaresVigentes.map((p) => (
-                        <tr key={p.id} className="border-b border-secondary/50">
+                        <tr key={p.id} className="border-b border-borderSoft/80">
                           <td className="py-2">${p.monto.toFixed(2)}</td>
                           <td>{new Date(p.fecha).toLocaleDateString('es-MX')}</td>
                           <td>{p.abonos?.length ?? 0}</td>
                           <td className="py-2">
                             <div className="flex gap-2 flex-wrap">
                               <button
-                                className="px-3 py-1 text-xs rounded bg-secondary/40 hover:bg-secondary/60"
+                                className="btn btn-secondary px-3 py-1 text-xs"
                                 onClick={() => setPagareSeleccionado(p)}
                               >
                                 Ver historial
                               </button>
                               <button
-                                className="px-3 py-1 text-xs rounded bg-primary hover:bg-primary/80 text-black disabled:opacity-60"
+                                className="px-3 py-1 text-xs rounded btn btn-primary disabled:opacity-60"
                                 disabled={p.monto <= 0}
                                 onClick={() => abrirModalAbono(p)}
                               >
@@ -301,9 +301,9 @@ export default function Creditos() {
                 {pagaresHistoricos.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Historial de pagarés</p>
-                    <table className="w-full text-sm">
+                    <table className="table">
                       <thead>
-                        <tr className="text-left text-gray-600">
+                        <tr className="text-left text-text/65">
                           <th className="py-1">Monto final</th>
                           <th className="py-1">Fecha</th>
                           <th className="py-1">Estado</th>
@@ -312,7 +312,7 @@ export default function Creditos() {
                       </thead>
                       <tbody>
                         {pagaresHistoricos.map((p) => (
-                          <tr key={p.id} className="border-b border-secondary/50">
+                          <tr key={p.id} className="border-b border-borderSoft/80">
                             <td className="py-2">${p.monto.toFixed(2)}</td>
                             <td>{new Date(p.fecha).toLocaleDateString('es-MX')}</td>
                             <td className="capitalize">{p.estado}</td>
@@ -333,23 +333,23 @@ export default function Creditos() {
         <div className="flex items-center justify-between">
           <p className="font-medium">Historial de abonos</p>
           {pagareSeleccionado && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-text/55">
               Pagaré #{pagareSeleccionado.id} · Estado {pagareSeleccionado.estado}
             </span>
           )}
         </div>
 
         {!pagareSeleccionado ? (
-          <p className="text-sm text-gray-500">Selecciona un pagaré para ver sus abonos.</p>
+          <p className="text-sm text-text/55">Selecciona un pagaré para ver sus abonos.</p>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-text/65">
               Monto pendiente: <span className="font-semibold">${pagareSeleccionado.monto.toFixed(2)}</span>
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-gray-600">
+                  <tr className="text-left text-text/65">
                     <th className="py-1">Monto</th>
                     <th className="py-1">Fecha</th>
                   </tr>
@@ -357,13 +357,13 @@ export default function Creditos() {
                 <tbody>
                   {(pagareSeleccionado.abonos ?? []).length === 0 ? (
                     <tr>
-                      <td className="py-2 text-gray-500" colSpan={2}>
+                      <td className="py-2 text-text/55" colSpan={2}>
                         Sin abonos registrados.
                       </td>
                     </tr>
                   ) : (
                     pagareSeleccionado.abonos?.map((a) => (
-                      <tr key={a.id} className="border-b border-secondary/50">
+                      <tr key={a.id} className="border-b border-borderSoft/80">
                         <td className="py-2">${a.monto.toFixed(2)}</td>
                         <td>{new Date(a.fecha).toLocaleDateString('es-MX')}</td>
                       </tr>
@@ -377,17 +377,17 @@ export default function Creditos() {
       </div>
 
       {mostrandoModal && clienteSeleccionado && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10">
-          <div className="bg-white rounded shadow-lg p-6 w-full max-w-md space-y-4">
+        <div className="fixed inset-0 bg-text/24 flex items-center justify-center z-10">
+          <div className="modal-panel p-6 w-full max-w-md space-y-4">
             <h3 className="text-lg font-semibold">Generar pagaré</h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-text/65">
               Cliente: <span className="font-medium">{clienteSeleccionado.nombre}</span>
             </p>
             <div className="space-y-2">
-              <label className="text-sm text-gray-700">Monto (máximo ${clienteSeleccionado.saldo.toFixed(2)})</label>
+              <label className="text-sm text-text/75">Monto (máximo ${clienteSeleccionado.saldo.toFixed(2)})</label>
               <input
                 type="number"
-                className="w-full border border-secondary rounded px-3 py-2"
+                className="w-full border border-borderSoft rounded-xl px-3 py-2"
                 value={monto}
                 min={0}
                 max={clienteSeleccionado.saldo}
@@ -396,11 +396,11 @@ export default function Creditos() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button className="px-3 py-2 rounded bg-secondary/50 hover:bg-secondary/70 text-sm" onClick={cerrarModal}>
+              <button className="btn btn-secondary px-3 py-2 text-sm" onClick={cerrarModal}>
                 Cancelar
               </button>
               <button
-                className="px-3 py-2 rounded bg-primary hover:bg-primary/80 text-sm text-black disabled:opacity-60"
+                className="btn btn-primary px-3 py-2 text-sm disabled:opacity-60"
                 disabled={guardando}
                 onClick={generarPagare}
               >
@@ -412,22 +412,22 @@ export default function Creditos() {
       )}
 
       {mostrandoModalAbono && clienteSeleccionado && pagareParaAbono && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-10">
-          <div className="bg-white rounded shadow-lg p-6 w-full max-w-md space-y-4">
+        <div className="fixed inset-0 bg-text/24 flex items-center justify-center z-10">
+          <div className="modal-panel p-6 w-full max-w-md space-y-4">
             <h3 className="text-lg font-semibold">Registrar abono</h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-text/65">
               Cliente: <span className="font-medium">{clienteSeleccionado.nombre}</span>
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-text/65">
               Pagaré #{pagareParaAbono.id} · Pendiente ${pagareParaAbono.monto.toFixed(2)}
             </p>
             <div className="space-y-2">
-              <label className="text-sm text-gray-700">
+              <label className="text-sm text-text/75">
                 Monto (máximo ${pagareParaAbono.monto.toFixed(2)})
               </label>
               <input
                 type="number"
-                className="w-full border border-secondary rounded px-3 py-2"
+                className="w-full border border-borderSoft rounded-xl px-3 py-2"
                 value={montoAbono}
                 min={0}
                 max={pagareParaAbono.monto}
@@ -436,11 +436,11 @@ export default function Creditos() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button className="px-3 py-2 rounded bg-secondary/50 hover:bg-secondary/70 text-sm" onClick={cerrarModalAbono}>
+              <button className="btn btn-secondary px-3 py-2 text-sm" onClick={cerrarModalAbono}>
                 Cancelar
               </button>
               <button
-                className="px-3 py-2 rounded bg-primary hover:bg-primary/80 text-sm text-black disabled:opacity-60"
+                className="btn btn-primary px-3 py-2 text-sm disabled:opacity-60"
                 disabled={guardandoAbono}
                 onClick={registrarAbono}
               >

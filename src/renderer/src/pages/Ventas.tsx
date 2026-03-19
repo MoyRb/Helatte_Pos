@@ -332,14 +332,14 @@ export default function Ventas() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-xl font-semibold">POS rápido</h2>
-            <p className="text-sm text-gray-600">Mostrador sin fricción y mayoreo con cliente, descuento e impresión.</p>
+            <p className="text-sm text-text/65">Mostrador sin fricción y mayoreo con cliente, descuento e impresión.</p>
           </div>
-          <input placeholder="Buscar" className="border rounded-lg px-3 py-2 text-sm" disabled />
+          <input placeholder="Buscar" className="input max-w-xs" disabled />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="rounded-xl border border-secondary/70 bg-secondary/20 p-3 space-y-2">
-            <p className="text-sm font-medium text-gray-700">Tipo de venta</p>
+          <div className="rounded-xl border border-borderSoft/80 bg-sky/12 p-3 space-y-2">
+            <p className="text-sm font-medium text-text/75">Tipo de venta</p>
             <div className="grid grid-cols-2 gap-2">
               {(['MOSTRADOR', 'MAYOREO'] as PosSaleType[]).map((option) => (
                 <button
@@ -348,8 +348,8 @@ export default function Ventas() {
                   onClick={() => setTipoVenta(option)}
                   className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                     tipoVenta === option
-                      ? 'border-primary bg-primary/80 text-black'
-                      : 'border-secondary/80 bg-white text-gray-700 hover:bg-secondary/20'
+                      ? 'border-blush/50 bg-blush/26 text-text shadow-sm'
+                      : 'border-borderSoft/80 bg-white/85 text-text/75 hover:bg-sky/16'
                   }`}
                 >
                   {saleTypeLabels[option]}
@@ -357,9 +357,9 @@ export default function Ventas() {
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-secondary/70 bg-secondary/20 p-3 space-y-1">
-            <p className="text-sm font-medium text-gray-700">Reglas activas</p>
-            <p className="text-sm text-gray-600">
+          <div className="rounded-xl border border-borderSoft/80 bg-sky/12 p-3 space-y-1">
+            <p className="text-sm font-medium text-text/75">Reglas activas</p>
+            <p className="text-sm text-text/65">
               {tipoVenta === 'MOSTRADOR'
                 ? 'Se conserva el flujo rápido actual y el precio normal.'
                 : 'Cliente obligatorio, precio mayoreo por producto y opción de remisión.'}
@@ -368,7 +368,7 @@ export default function Ventas() {
         </div>
 
         {cargando ? (
-          <p className="text-sm text-gray-500">Cargando productos...</p>
+          <p className="text-sm text-text/55">Cargando productos...</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {productos.map((p) => {
@@ -384,12 +384,12 @@ export default function Ventas() {
                   }`}
                 >
                   <p className="font-semibold">{p.sabor?.nombre ?? p.presentacion}</p>
-                  <p className="text-xs text-gray-600 capitalize">{p.tipo.nombre}</p>
+                  <p className="text-xs text-text/65 capitalize">{p.tipo.nombre}</p>
                   <p className="text-sm font-medium">{formatMoney(precioActivo)}</p>
-                  <p className="text-[11px] text-gray-500">
+                  <p className="text-[11px] text-text/55">
                     {usandoPrecioMayoreo ? 'Precio mayoreo aplicado' : tipoVenta === 'MAYOREO' ? 'Usando precio normal como fallback' : 'Precio mostrador'}
                   </p>
-                  <p className="text-xs text-gray-500">Stock: {p.stock}</p>
+                  <p className="text-xs text-text/55">Stock: {p.stock}</p>
                 </button>
               );
             })}
@@ -405,7 +405,7 @@ export default function Ventas() {
 
         <div className="space-y-3 mb-3">
           <div className="space-y-2">
-            <label className="text-sm text-gray-700">
+            <label className="text-sm text-text/75">
               Cliente {tipoVenta === 'MAYOREO' ? '(obligatorio)' : '(opcional)'}
             </label>
             <select
@@ -423,12 +423,12 @@ export default function Ventas() {
               ))}
             </select>
             {tipoVenta === 'MAYOREO' && clientesMayoreo.length === 0 && !cargandoClientes && (
-              <p className="text-xs text-amber-700">No hay clientes activos habilitados para mayoreo.</p>
+              <p className="text-xs text-butterDeep">No hay clientes activos habilitados para mayoreo.</p>
             )}
           </div>
 
-          <div className="rounded-xl border border-secondary/70 bg-secondary/20 p-3 space-y-2">
-            <p className="text-sm font-medium text-gray-700">Descuento general</p>
+          <div className="rounded-xl border border-borderSoft/80 bg-sky/12 p-3 space-y-2">
+            <p className="text-sm font-medium text-text/75">Descuento general</p>
             <div className="grid grid-cols-1 gap-2">
               <select
                 className="input"
@@ -454,22 +454,22 @@ export default function Ventas() {
                   placeholder={descuentoTipo === 'porcentaje' ? 'Ej. 10' : 'Ej. 150'}
                 />
               )}
-              {discountPreview.error && <p className="text-xs text-red-600">{discountPreview.error}</p>}
+              {discountPreview.error && <p className="text-xs text-blushDeep">{discountPreview.error}</p>}
             </div>
           </div>
         </div>
 
         <div className="space-y-2 flex-1 overflow-auto">
-          {carrito.length === 0 && <p className="text-sm text-gray-500">Agrega productos al carrito.</p>}
+          {carrito.length === 0 && <p className="text-sm text-text/55">Agrega productos al carrito.</p>}
           {carritoDetallado.map(({ item, producto, precioUnitario, subtotalLinea }) => {
             const sabor = sabores.find((s) => s.id === producto.sabor.id)?.nombre ?? producto.sabor.nombre;
             return (
-              <div key={item.id} className="bg-secondary/40 rounded-lg px-3 py-2 space-y-2">
+              <div key={item.id} className="bg-sky/18 rounded-lg px-3 py-2 space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{sabor}</p>
-                    <p className="text-xs text-gray-600 capitalize">{producto.tipo.nombre}</p>
-                    <p className="text-xs text-gray-500">Unitario: {formatMoney(precioUnitario)}</p>
+                    <p className="text-xs text-text/65 capitalize">{producto.tipo.nombre}</p>
+                    <p className="text-xs text-text/55">Unitario: {formatMoney(precioUnitario)}</p>
                   </div>
                   <p className="text-right font-semibold">{formatMoney(subtotalLinea)}</p>
                 </div>
@@ -488,32 +488,32 @@ export default function Ventas() {
         </div>
 
         <div className="pt-3 border-t mt-3 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-green-700" hidden={!mensaje}>
+          <div className="flex items-center gap-2 text-sm text-mintDeep" hidden={!mensaje}>
             <CheckCircle2 size={16} />
             <span>{mensaje}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-red-700" hidden={!error}>
+          <div className="flex items-center gap-2 text-sm text-blushDeep" hidden={!error}>
             <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
 
-          <div className="rounded-xl bg-secondary/20 p-3 space-y-2 text-sm">
+          <div className="rounded-xl bg-sky/12 p-3 space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Subtotal</span>
+              <span className="text-text/65">Subtotal</span>
               <span className="font-medium">{formatMoney(subtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Descuento</span>
+              <span className="text-text/65">Descuento</span>
               <span className="font-medium">- {formatMoney(discountPreview.value)}</span>
             </div>
-            <div className="flex items-center justify-between border-t border-secondary/70 pt-2">
-              <span className="text-gray-700 font-medium">Total final</span>
+            <div className="flex items-center justify-between border-t border-borderSoft/80 pt-2">
+              <span className="text-text/75 font-medium">Total final</span>
               <span className="text-2xl font-semibold">{formatMoney(total)}</span>
             </div>
           </div>
 
           <button
-            className="mt-3 w-full bg-primary text-black font-semibold py-2 rounded-lg hover:opacity-90 disabled:opacity-60"
+            className="btn btn-primary mt-3 w-full py-2.5"
             onClick={cobrar}
             disabled={!carrito.length || guardando}
             type="button"
@@ -523,7 +523,7 @@ export default function Ventas() {
 
           {ultimaVenta?.tipoVenta === 'MAYOREO' && (
             <button
-              className="w-full border border-primary text-primary font-semibold py-2 rounded-lg hover:bg-primary/10 flex items-center justify-center gap-2"
+              className="btn btn-secondary w-full py-2.5 flex items-center justify-center gap-2"
               onClick={() => imprimirRemision(ultimaVenta)}
               type="button"
             >

@@ -3,17 +3,141 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #F72585;
-  --color-secondary: #FFD6E7;
-  --color-accent: #111111;
-  --color-highlight: #FF5FA2;
-  --color-surface: #FFF6FA;
-  --color-background: #F3EFF2;
-  --color-texto: #111111;
+  --color-butter: #E7E7AE;
+  --color-sky: #A7CCE5;
+  --color-blush: #DF9FC3;
+  --color-mint: #B6D8B8;
+  --color-ivory: #F9F7F0;
+  --color-text: #2F3133;
+  --color-border-soft: #D9DDD6;
+  --color-primary: #DF9FC3;
+  --color-secondary: #A7CCE5;
+  --color-accent: #2F3133;
+  --color-highlight: #E7E7AE;
+  --color-surface: #F9F7F0;
+  --color-background: #F9F7F0;
+  --color-texto: #2F3133;
 }
 
-body {
-  font-family: "Inter", sans-serif;
-  background: var(--color-surface);
-  color: var(--color-texto);
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(167, 204, 229, 0.18), transparent 28%),
+      radial-gradient(circle at top right, rgba(223, 159, 195, 0.12), transparent 24%),
+      var(--color-background);
+    color: var(--color-text);
+    @apply antialiased;
+  }
+
+  * {
+    @apply border-borderSoft;
+  }
+
+  button {
+    @apply transition-all duration-200;
+  }
+
+  ::selection {
+    background: rgba(223, 159, 195, 0.3);
+    color: var(--color-text);
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-borderSoft bg-white backdrop-blur-sm;
+    box-shadow: 0 14px 34px rgba(47, 49, 51, 0.07);
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-borderSoft bg-white px-3 py-2 text-sm text-text shadow-sm transition-all duration-200 focus:outline-none focus:ring-4;
+    border-color: rgba(217, 221, 214, 0.95);
+    box-shadow: 0 2px 8px rgba(47, 49, 51, 0.04);
+  }
+
+  .input::placeholder {
+    color: rgba(47, 49, 51, 0.45);
+  }
+
+  .input:focus {
+    border-color: rgba(167, 204, 229, 0.85);
+    --tw-ring-color: rgba(167, 204, 229, 0.24);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-borderSoft bg-white px-4 py-2 text-sm font-semibold text-text shadow-sm transition-all duration-200 focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60;
+    box-shadow: 0 6px 16px rgba(47, 49, 51, 0.05);
+  }
+
+  .btn:hover {
+    background-color: rgba(167, 204, 229, 0.16);
+    border-color: rgba(167, 204, 229, 0.55);
+  }
+
+  .btn:focus {
+    --tw-ring-color: rgba(167, 204, 229, 0.24);
+  }
+
+  .btn-primary {
+    border-color: rgba(223, 159, 195, 0.7);
+    background-color: rgba(223, 159, 195, 0.78);
+    box-shadow: 0 12px 28px rgba(223, 159, 195, 0.18);
+  }
+
+  .btn-primary:hover {
+    border-color: rgba(223, 159, 195, 0.9);
+    background-color: rgba(223, 159, 195, 0.9);
+  }
+
+  .btn-secondary {
+    border-color: rgba(167, 204, 229, 0.7);
+    background-color: rgba(167, 204, 229, 0.18);
+  }
+
+  .btn-secondary:hover {
+    background-color: rgba(167, 204, 229, 0.28);
+  }
+
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-text shadow-none;
+  }
+
+  .btn-ghost:hover {
+    background-color: rgba(167, 204, 229, 0.14);
+  }
+
+  .modal-panel {
+    @apply w-full rounded-2xl border border-borderSoft bg-white backdrop-blur;
+    box-shadow: 0 24px 80px rgba(47, 49, 51, 0.16);
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+
+  .table thead tr {
+    @apply border-b border-borderSoft text-left;
+    color: rgba(47, 49, 51, 0.62);
+  }
+
+  .table th {
+    @apply py-2 font-medium;
+  }
+
+  .table td {
+    @apply py-2 align-top;
+  }
+
+  .table tbody tr {
+    @apply border-b border-borderSoft;
+  }
+
+  .table tbody tr:last-child {
+    @apply border-b-0;
+  }
 }

@@ -255,22 +255,22 @@ export default function Catalogo() {
       </div>
 
       {error && (
-        <div className="card p-3 text-sm text-red-700 bg-red-50">
+        <div className="card p-3 text-sm text-blushDeep bg-blush/12">
           {error}
         </div>
       )}
 
       {cargando ? (
-        <p className="text-sm text-gray-500">Cargando catálogo...</p>
+        <p className="text-sm text-text/55">Cargando catálogo...</p>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* TIPOS */}
             <div className="card p-4">
               <h3 className="font-semibold mb-2">Tipos</h3>
-              <table className="w-full text-sm">
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-gray-600">
+                  <tr className="text-left text-text/65">
                     <th>Nombre</th>
                     <th>Estado</th>
                     <th className="text-right">Acciones</th>
@@ -278,19 +278,19 @@ export default function Catalogo() {
                 </thead>
                 <tbody>
                   {tipos.map((t) => (
-                    <tr key={t.id} className="border-b border-secondary/50">
+                    <tr key={t.id} className="border-b border-borderSoft/80">
                       <td className="py-1">{t.nombre}</td>
                       <td>{t.activo ? 'Activo' : 'Inactivo'}</td>
                       <td className="py-1 text-right">
-                        <button className="text-primary hover:underline mr-3" onClick={() => abrirEditarTipo(t)}>Editar</button>
-                        <button className="text-primary hover:underline" onClick={() => toggleTipo(t)}>
+                        <button className="text-blushDeep hover:underline mr-3" onClick={() => abrirEditarTipo(t)}>Editar</button>
+                        <button className="text-blushDeep hover:underline" onClick={() => toggleTipo(t)}>
                           {t.activo ? 'Desactivar' : 'Activar'}
                         </button>
                       </td>
                     </tr>
                   ))}
                   {tipos.length === 0 && (
-                    <tr><td className="py-2 text-gray-500" colSpan={3}>No hay tipos aún.</td></tr>
+                    <tr><td className="py-2 text-text/55" colSpan={3}>No hay tipos aún.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -299,9 +299,9 @@ export default function Catalogo() {
             {/* SABORES */}
             <div className="card p-4">
               <h3 className="font-semibold mb-2">Sabores</h3>
-              <table className="w-full text-sm">
+              <table className="table">
                 <thead>
-                  <tr className="text-left text-gray-600">
+                  <tr className="text-left text-text/65">
                     <th>Nombre</th>
                     <th>Color</th>
                     <th>Estado</th>
@@ -310,20 +310,20 @@ export default function Catalogo() {
                 </thead>
                 <tbody>
                   {sabores.map((s) => (
-                    <tr key={s.id} className="border-b border-secondary/50">
+                    <tr key={s.id} className="border-b border-borderSoft/80">
                       <td className="py-1">{s.nombre}</td>
                       <td>{s.color ?? '—'}</td>
                       <td>{s.activo ? 'Activo' : 'Inactivo'}</td>
                       <td className="py-1 text-right">
-                        <button className="text-primary hover:underline mr-3" onClick={() => abrirEditarSabor(s)}>Editar</button>
-                        <button className="text-primary hover:underline" onClick={() => toggleSabor(s)}>
+                        <button className="text-blushDeep hover:underline mr-3" onClick={() => abrirEditarSabor(s)}>Editar</button>
+                        <button className="text-blushDeep hover:underline" onClick={() => toggleSabor(s)}>
                           {s.activo ? 'Desactivar' : 'Activar'}
                         </button>
                       </td>
                     </tr>
                   ))}
                   {sabores.length === 0 && (
-                    <tr><td className="py-2 text-gray-500" colSpan={4}>No hay sabores aún.</td></tr>
+                    <tr><td className="py-2 text-text/55" colSpan={4}>No hay sabores aún.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -333,9 +333,9 @@ export default function Catalogo() {
           {/* PRODUCTOS */}
           <div className="card p-4">
             <h3 className="font-semibold mb-2">Productos</h3>
-            <table className="w-full text-sm">
+            <table className="table">
               <thead>
-                <tr className="text-left text-gray-600">
+                <tr className="text-left text-text/65">
                   <th>SKU</th>
                   <th>Tipo</th>
                   <th>Sabor</th>
@@ -348,7 +348,7 @@ export default function Catalogo() {
               </thead>
               <tbody>
                 {productos.map((p) => (
-                  <tr key={p.id} className="border-b border-secondary/50">
+                  <tr key={p.id} className="border-b border-borderSoft/80">
                     <td className="py-1">{p.sku ?? '—'}</td>
                     <td className="capitalize">{p.tipo?.nombre ?? tipoNombrePorId.get((p as any).tipoId) ?? '—'}</td>
                     <td>{p.sabor?.nombre ?? saborNombrePorId.get((p as any).saborId) ?? '—'}</td>
@@ -357,15 +357,15 @@ export default function Catalogo() {
                     <td>{p.precioMayoreo !== null && p.precioMayoreo !== undefined ? `$${p.precioMayoreo.toFixed(2)}` : 'Normal'}</td>
                     <td>{p.activo ? 'Activo' : 'Inactivo'}</td>
                     <td className="py-1 text-right">
-                      <button className="text-primary hover:underline mr-3" onClick={() => abrirEditarProducto(p)}>Editar</button>
-                      <button className="text-primary hover:underline" onClick={() => toggleProducto(p)}>
+                      <button className="text-blushDeep hover:underline mr-3" onClick={() => abrirEditarProducto(p)}>Editar</button>
+                      <button className="text-blushDeep hover:underline" onClick={() => toggleProducto(p)}>
                         {p.activo ? 'Desactivar' : 'Activar'}
                       </button>
                     </td>
                   </tr>
                 ))}
                 {productos.length === 0 && (
-                  <tr><td className="py-2 text-gray-500" colSpan={8}>No hay productos aún.</td></tr>
+                  <tr><td className="py-2 text-text/55" colSpan={8}>No hay productos aún.</td></tr>
                 )}
               </tbody>
             </table>
@@ -375,9 +375,9 @@ export default function Catalogo() {
 
       {/* MODAL TIPO */}
       {mostrarTipo && (
-        <div className="fixed inset-0 bg-black/30 z-20">
+        <div className="fixed inset-0 bg-text/18 z-20">
           <div className="flex min-h-full items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] p-5 flex flex-col">
+            <div className="modal-panel w-full max-w-md max-h-[90vh] p-5 flex flex-col">
               <div className="flex items-center justify-between gap-3">
                 <h4 className="font-semibold">{editTipoId ? 'Editar tipo' : 'Nuevo tipo'}</h4>
                 <button onClick={() => setMostrarTipo(false)}>Cerrar</button>
@@ -396,7 +396,7 @@ export default function Catalogo() {
 
               <div className="flex flex-col gap-2 pt-3 border-t">
                 <button className="btn w-full" onClick={guardarTipo}>Guardar</button>
-                <button className="btn-secondary w-full" onClick={() => setMostrarTipo(false)}>Cancelar</button>
+                <button className="btn btn-secondary w-full" onClick={() => setMostrarTipo(false)}>Cancelar</button>
               </div>
             </div>
           </div>
@@ -405,9 +405,9 @@ export default function Catalogo() {
 
       {/* MODAL SABOR */}
       {mostrarSabor && (
-        <div className="fixed inset-0 bg-black/30 z-20">
+        <div className="fixed inset-0 bg-text/18 z-20">
           <div className="flex min-h-full items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-lg w-full max-w-md max-h-[90vh] p-5 flex flex-col">
+            <div className="modal-panel w-full max-w-md max-h-[90vh] p-5 flex flex-col">
               <div className="flex items-center justify-between gap-3">
                 <h4 className="font-semibold">{editSaborId ? 'Editar sabor' : 'Nuevo sabor'}</h4>
                 <button onClick={() => setMostrarSabor(false)}>Cerrar</button>
@@ -430,7 +430,7 @@ export default function Catalogo() {
 
               <div className="flex flex-col gap-2 pt-3 border-t">
                 <button className="btn w-full" onClick={guardarSabor}>Guardar</button>
-                <button className="btn-secondary w-full" onClick={() => setMostrarSabor(false)}>Cancelar</button>
+                <button className="btn btn-secondary w-full" onClick={() => setMostrarSabor(false)}>Cancelar</button>
               </div>
             </div>
           </div>
@@ -439,9 +439,9 @@ export default function Catalogo() {
 
       {/* MODAL PRODUCTO */}
       {mostrarProducto && (
-        <div className="fixed inset-0 bg-black/30 z-20">
+        <div className="fixed inset-0 bg-text/18 z-20">
           <div className="flex min-h-full items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] p-5 flex flex-col">
+            <div className="modal-panel w-full max-w-lg max-h-[90vh] p-5 flex flex-col">
               <div className="flex items-center justify-between gap-3">
                 <h4 className="font-semibold">{editProductoId ? 'Editar producto' : 'Nuevo producto'}</h4>
                 <button onClick={() => setMostrarProducto(false)}>Cerrar</button>
@@ -517,7 +517,7 @@ export default function Catalogo() {
 
               <div className="flex flex-col gap-2 pt-3 border-t">
                 <button className="btn w-full" onClick={guardarProducto}>Guardar</button>
-                <button className="btn-secondary w-full" onClick={() => setMostrarProducto(false)}>Cancelar</button>
+                <button className="btn btn-secondary w-full" onClick={() => setMostrarProducto(false)}>Cancelar</button>
               </div>
             </div>
           </div>

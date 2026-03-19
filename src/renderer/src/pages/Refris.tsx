@@ -137,18 +137,18 @@ export default function Refris() {
         </button>
       </div>
 
-      {mensaje && <p className="text-sm text-green-700">{mensaje}</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {mensaje && <p className="text-sm text-mintDeep">{mensaje}</p>}
+      {error && <p className="text-sm text-blushDeep">{error}</p>}
 
       <div className="card p-4">
         {cargando ? (
-          <p className="text-sm text-gray-500">Cargando refris...</p>
+          <p className="text-sm text-text/55">Cargando refris...</p>
         ) : refrisOrdenados.length === 0 ? (
-          <p className="text-sm text-gray-600">No hay refris registrados.</p>
+          <p className="text-sm text-text/65">No hay refris registrados.</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table">
             <thead>
-              <tr className="text-left text-gray-600">
+              <tr className="text-left text-text/65">
                 <th>ID</th>
                 <th>Modelo</th>
                 <th>Serie</th>
@@ -163,7 +163,7 @@ export default function Refris() {
                 const historial = obtenerHistorialAsignaciones(r);
                 const asignacionReferencia = asignacionActiva ?? historial[0];
                 return (
-                  <tr key={r.id} className="border-b border-secondary/50">
+                  <tr key={r.id} className="border-b border-borderSoft/80">
                     <td className="py-1">{r.id}</td>
                     <td>{r.modelo}</td>
                     <td>{r.serie}</td>
@@ -175,23 +175,23 @@ export default function Refris() {
                               <span className="font-medium">
                                 {asignacionReferencia.customer?.nombre ?? 'Cliente desconocido'}
                               </span>
-                              <span className="text-xs text-gray-600">
+                              <span className="text-xs text-text/65">
                                 {asignacionReferencia.ubicacion || 'Sin ubicación'}
                               </span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-text/55">
                                 Asignado {formatearFecha(asignacionReferencia.entregadoEn)}
                                 {asignacionReferencia.fechaFin ? ` — Fin ${formatearFecha(asignacionReferencia.fechaFin)}` : ''}
                               </span>
                             </div>
                             {historial.length > 0 && (
-                              <div className="text-xs text-gray-700 border-t border-secondary/50 pt-1 space-y-1">
-                                <p className="font-semibold text-gray-700">Historial</p>
+                              <div className="text-xs text-text/75 border-t border-borderSoft/80 pt-1 space-y-1">
+                                <p className="font-semibold text-text/75">Historial</p>
                                 <ul className="space-y-1">
                                   {historial.map((a) => (
                                     <li key={a.id} className="flex flex-col">
                                       <span className="font-medium">{a.customer?.nombre ?? 'Cliente desconocido'}</span>
-                                      <span className="text-gray-600">{a.ubicacion || 'Sin ubicación'}</span>
-                                      <span className="text-[11px] text-gray-500">
+                                      <span className="text-text/65">{a.ubicacion || 'Sin ubicación'}</span>
+                                      <span className="text-[11px] text-text/55">
                                         {formatearFecha(a.entregadoEn)} → {formatearFecha(a.fechaFin)}
                                       </span>
                                     </li>
@@ -201,24 +201,24 @@ export default function Refris() {
                             )}
                           </>
                         ) : (
-                          <span className="text-gray-500">Sin asignar</span>
+                          <span className="text-text/55">Sin asignar</span>
                         )}
                       </div>
                     </td>
                     <td>
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-medium capitalize ${
-                          r.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'
+                          r.estado === 'activo' ? 'bg-mint/30 text-mintDeep' : 'bg-borderSoft/80 text-text/75'
                         }`}
                       >
                         {r.estado}
                       </span>
                     </td>
                     <td className="space-x-2 text-right">
-                      <button className="text-primary text-sm" onClick={() => abrirEditar(r)}>
+                      <button className="text-blushDeep text-sm" onClick={() => abrirEditar(r)}>
                         Editar
                       </button>
-                      <button className="text-sm text-gray-700" onClick={() => toggleEstado(r)}>
+                      <button className="text-sm text-text/75" onClick={() => toggleEstado(r)}>
                         {r.estado === 'activo' ? 'Desactivar' : 'Activar'}
                       </button>
                     </td>
@@ -229,19 +229,19 @@ export default function Refris() {
           </table>
         )}
 
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-text/55 mt-3">
           Control de visitas, reposición y mermas se gestionan en historial.
         </p>
       </div>
 
       {mostrandoModal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20">
-          <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-lg space-y-3">
+        <div className="fixed inset-0 bg-text/18 flex items-center justify-center z-20">
+          <div className="modal-panel p-5 w-full max-w-lg space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold">{editando ? 'Editar refri' : 'Nuevo refri'}</h4>
               <button onClick={cerrarModal}>Cerrar</button>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-blushDeep">{error}</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className="flex flex-col text-sm gap-1">
                 Modelo

@@ -122,7 +122,7 @@ export default function Finanzas() {
       </div>
 
       {error ? (
-        <div className="card p-3 border border-red-300">
+        <div className="card p-3 border border-blush/35">
           <div className="font-semibold">Error</div>
           <div className="text-sm opacity-80">{error}</div>
         </div>
