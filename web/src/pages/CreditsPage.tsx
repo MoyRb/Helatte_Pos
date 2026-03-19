@@ -51,7 +51,7 @@ export const CreditsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2">
             Cliente
             <select
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.clientId}
               onChange={(e) => setForm((prev) => ({ ...prev, clientId: e.target.value }))}
               required
@@ -70,7 +70,7 @@ export const CreditsPage: React.FC = () => {
               type="number"
               min={0}
               step={0.01}
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.amount}
               onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
               required
@@ -80,7 +80,7 @@ export const CreditsPage: React.FC = () => {
             Fecha
             <input
               type="date"
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.date}
               onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
               required
@@ -111,7 +111,7 @@ export const CreditsPage: React.FC = () => {
             const paymentInput = paymentInputs[credit.id] ?? { amount: 0, note: '', date: today };
 
             return (
-              <div key={credit.id} className="border border-cream rounded-lg p-4 bg-white shadow-sm">
+              <div key={credit.id} className="border border-borderSoft rounded-lg p-4 bg-surface shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="space-y-1">
                     <p className="text-xs text-coffee/70">{formatDate(credit.date)}</p>
@@ -126,7 +126,7 @@ export const CreditsPage: React.FC = () => {
                     <select
                       value={credit.status}
                       onChange={(e) => updateCreditStatus(credit.id, e.target.value as typeof credit.status)}
-                      className="border border-cream rounded-lg px-3 py-2 text-sm"
+                      className="border border-borderSoft rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="pendiente">Pendiente</option>
                       <option value="pagado">Pagado</option>
@@ -135,11 +135,11 @@ export const CreditsPage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">
-                  <div className="lg:col-span-2 bg-cream/60 rounded-lg p-3">
+                  <div className="lg:col-span-2 bg-secondarySoft/60 rounded-lg p-3">
                     <p className="text-xs font-semibold text-coffee mb-2">Abonos</p>
                     <div className="space-y-2 max-h-36 overflow-y-auto">
                       {credit.payments.map((payment) => (
-                        <div key={payment.id} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2">
+                        <div key={payment.id} className="flex items-center justify-between text-sm bg-surface rounded-lg px-3 py-2">
                           <div>
                             <p className="font-semibold">${payment.amount.toFixed(2)}</p>
                             <p className="text-xs text-coffee/70">{payment.note || 'Sin nota'}</p>
@@ -152,26 +152,26 @@ export const CreditsPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="bg-cream/60 rounded-lg p-3 space-y-2">
+                  <div className="bg-secondarySoft/60 rounded-lg p-3 space-y-2">
                     <p className="text-xs font-semibold text-coffee">Agregar abono</p>
                     <input
                       type="number"
                       min={0}
                       step={0.01}
-                      className="w-full border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
+                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
                       value={paymentInput.amount}
                       onChange={(e) => updatePaymentInput(credit.id, { amount: Number(e.target.value) })}
                       placeholder="Monto"
                     />
                     <input
-                      className="w-full border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
+                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
                       value={paymentInput.note}
                       onChange={(e) => updatePaymentInput(credit.id, { note: e.target.value })}
                       placeholder="Nota (opcional)"
                     />
                     <input
                       type="date"
-                      className="w-full border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
+                      className="w-full border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint text-sm"
                       value={paymentInput.date}
                       onChange={(e) => updatePaymentInput(credit.id, { date: e.target.value })}
                     />

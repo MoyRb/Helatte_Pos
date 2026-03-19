@@ -6,19 +6,49 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #F3EFF2;
+  background-color: #F8F3F6;
+  color: #2F2A2D;
 }
 
 body {
   margin: 0;
+  background: #F8F3F6;
+  color: #2F2A2D;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(232, 90, 155, 0.22);
+  color: #2F2A2D;
 }
 
 .btn-primary {
-  @apply bg-mint text-coffee font-semibold rounded-lg px-4 py-2 transition hover:bg-accent hover:text-white shadow-card;
+  @apply bg-primary text-surface font-semibold rounded-xl px-4 py-2 transition-all duration-200 hover:bg-primaryHover hover:-translate-y-px focus:outline-none focus:ring-4 focus:ring-primarySoft/80 disabled:opacity-60 disabled:cursor-not-allowed shadow-card;
 }
 
 .card {
-  @apply bg-white rounded-xl shadow-card border border-cream/80;
+  @apply bg-surface rounded-2xl shadow-card border border-borderSoft/90;
+}
+
+@layer base {
+  input,
+  select,
+  textarea {
+    @apply bg-surface text-coffee placeholder:text-textMuted/70 border-borderSoft transition-colors;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    @apply border-primary/40 ring-4 ring-primarySoft/80;
+  }
+
+  button {
+    @apply transition-colors;
+  }
 }
 
 @media print {

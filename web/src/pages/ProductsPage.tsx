@@ -78,7 +78,7 @@ export const ProductsPage: React.FC = () => {
           <label className="flex flex-col gap-1 text-sm font-medium">
             Nombre
             <input
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               required
@@ -88,7 +88,7 @@ export const ProductsPage: React.FC = () => {
             Precio
             <input
               type="number"
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.price}
               min={0}
               step={0.01}
@@ -100,7 +100,7 @@ export const ProductsPage: React.FC = () => {
             Stock
             <input
               type="number"
-              className="border border-cream rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
+              className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint"
               value={form.stock}
               min={0}
               step={1}
@@ -129,19 +129,19 @@ export const ProductsPage: React.FC = () => {
                 <th className="pb-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-cream">
+            <tbody className="divide-y divide-borderSoft">
               {sortedProducts.map((product) => {
                 const lowStock = product.stock <= 5;
                 const editedStock = stockEdits[product.id] ?? product.stock;
                 return (
-                  <tr key={product.id} className={`hover:bg-cream/60 ${lowStock ? 'bg-blush/10' : ''}`}>
+                  <tr key={product.id} className={`hover:bg-secondarySoft/60 ${lowStock ? 'bg-blush/10' : ''}`}>
                     <td className="py-3 font-medium">{product.name}</td>
                     <td className="py-3">${product.price.toFixed(2)}</td>
                     <td className="py-3">
                       <div className="flex items-center gap-3 flex-wrap">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            lowStock ? 'bg-blush/50 text-coffee' : 'bg-cream text-coffee/80'
+                            lowStock ? 'bg-blush/50 text-coffee' : 'bg-secondarySoft text-coffee/80'
                           }`}
                         >
                           {product.stock} uds
@@ -149,7 +149,7 @@ export const ProductsPage: React.FC = () => {
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => adjustStock(product.id, product.stock, -1)}
-                            className="p-2 rounded-lg bg-cream text-coffee hover:bg-blush/50"
+                            className="p-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50"
                             aria-label="Disminuir stock"
                           >
                             -
@@ -157,13 +157,13 @@ export const ProductsPage: React.FC = () => {
                           <input
                             type="number"
                             min={0}
-                            className="w-20 border border-cream rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-mint"
+                            className="w-20 border border-borderSoft rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-mint"
                             value={editedStock}
                             onChange={(e) => changeStockValue(product.id, Number(e.target.value))}
                           />
                           <button
                             onClick={() => adjustStock(product.id, product.stock, 1)}
-                            className="p-2 rounded-lg bg-cream text-coffee hover:bg-blush/50"
+                            className="p-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50"
                             aria-label="Aumentar stock"
                           >
                             +
@@ -178,14 +178,14 @@ export const ProductsPage: React.FC = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => startEdit(product)}
-                          className="p-2 rounded-lg bg-cream text-coffee hover:bg-blush/50"
+                          className="p-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50"
                           aria-label="Editar"
                         >
                           <PencilSquareIcon className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => deleteProduct(product.id)}
-                          className="p-2 rounded-lg bg-cream text-coffee hover:bg-blush/50"
+                          className="p-2 rounded-lg bg-secondarySoft text-coffee hover:bg-blush/50"
                           aria-label="Eliminar"
                         >
                           <TrashIcon className="h-5 w-5" />

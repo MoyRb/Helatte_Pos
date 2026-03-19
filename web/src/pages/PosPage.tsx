@@ -119,14 +119,14 @@ export const PosPage: React.FC = () => {
             return (
               <div
                 key={product.id}
-                className={`card p-4 border border-cream ${lowStock ? 'ring-1 ring-blush/60' : ''}`}
+                className={`card p-4 border border-borderSoft ${lowStock ? 'ring-1 ring-blush/60' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
                     <p className="font-semibold">{product.name}</p>
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        lowStock ? 'bg-blush/50 text-coffee' : 'bg-cream text-coffee/70'
+                        lowStock ? 'bg-blush/50 text-coffee' : 'bg-secondarySoft text-coffee/70'
                       }`}
                     >
                       Stock: {product.stock}
@@ -164,7 +164,7 @@ export const PosPage: React.FC = () => {
 
         <div className="space-y-3 flex-1 overflow-y-auto pr-1">
           {cartItems.map((item) => (
-            <div key={item.productId} className="border border-cream rounded-lg p-3 flex items-center justify-between">
+            <div key={item.productId} className="border border-borderSoft rounded-lg p-3 flex items-center justify-between">
               <div>
                 <p className="font-semibold">{item.name}</p>
                 <p className="text-xs text-coffee/70">Stock: {item.stock}</p>
@@ -172,7 +172,7 @@ export const PosPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  className="p-2 rounded-lg bg-cream hover:bg-blush/50"
+                  className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
                   onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                   aria-label="Disminuir"
                 >
@@ -180,7 +180,7 @@ export const PosPage: React.FC = () => {
                 </button>
                 <span className="w-8 text-center font-semibold">{item.quantity}</span>
                 <button
-                  className="p-2 rounded-lg bg-cream hover:bg-blush/50"
+                  className="p-2 rounded-lg bg-secondarySoft hover:bg-blush/50"
                   onClick={() => updateQuantity(item.productId, Math.min(item.quantity + 1, item.stock))}
                   aria-label="Aumentar"
                   disabled={item.quantity >= item.stock}
@@ -193,7 +193,7 @@ export const PosPage: React.FC = () => {
           {!cartItems.length && <p className="text-sm text-coffee/70">No hay productos en el carrito.</p>}
         </div>
 
-        <div className="border-t border-cream pt-3 flex items-center justify-between">
+        <div className="border-t border-borderSoft pt-3 flex items-center justify-between">
           <div>
             <p className="text-sm text-coffee/70">Total</p>
             <p className="text-2xl font-bold">${total.toFixed(2)}</p>

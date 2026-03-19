@@ -213,6 +213,90 @@ const tableExists = async (prismaClient: PrismaClient, table: string): Promise<b
   return rows.length > 0
 }
 
+const addColumnIfMissing = async (
+  prismaClient: PrismaClient,
+  table: string,
+  column: string,
+  sql: string
+) => {
+  if (await columnExists(prismaClient, table, column)) return
+  await prismaClient.$executeRawUnsafe(sql)
+}
+
+const ensurePosWholesaleColumns = async (prismaClient: PrismaClient) => {
+  await addColumnIfMissing(
+    prismaClient,
+    'Product',
+    'precioMayoreo',
+    'ALTER TABLE "Product" ADD COLUMN "precioMayoreo" REAL'
+  )
+
+  await addColumnIfMissing(
+    prismaClient,
+    'Customer',
+    'permiteMayoreo',
+    'ALTER TABLE "Customer" ADD COLUMN "permiteMayoreo" BOOLEAN NOT NULL DEFAULT true'
+  )
+
+  await addColumnIfMissing(
+    prismaClient,
+    'Sale',
+    'customerId',
+    'ALTER TABLE "Sale" ADD COLUMN "customerId" INTEGER'
+  )
+  await addColumnIfMissing(
+    prismaClient,
+    'Sale',
+    'tipoVenta',
+    `ALTER TABLE "Sale" ADD COLUMN "tipoVenta" TEXT NOT NULL DEFAULT 'MOSTRADOR'`
+  )
+  await addColumnIfMissing(
+    prismaClient,
+    'Sale',
+    'subtotal',
+    'ALTER TABLE "Sale" ADD COLUMN "subtotal" REAL NOT NULL DEFAULT 0'
+  )
+  await addColumnIfMissing(
+    prismaClient,
+    'Sale',
+    'descuentoTipo',
+    `ALTER TABLE "Sale" ADD COLUMN "descuentoTipo" TEXT NOT NULL DEFAULT 'ninguno'`
+  )
+  await addColumnIfMissing(
+    prismaClient,
+    'Sale',
+    'descuentoValor',
+    'ALTER TABLE "Sale" ADD COLUMN "descuentoValor" REAL NOT NULL DEFAULT 0'
+  )
+
+  await addColumnIfMissing(
+    prismaClient,
+    'SaleItem',
+    'subtotalLinea',
+    'ALTER TABLE "SaleItem" ADD COLUMN "subtotalLinea" REAL NOT NULL DEFAULT 0'
+  )
+
+  await prismaClient.$executeRawUnsafe(
+    `UPDATE "Sale"
+     SET
+       "subtotal" = CASE WHEN "subtotal" = 0 THEN "total" ELSE "subtotal" END,
+       "descuentoTipo" = COALESCE("descuentoTipo", 'ninguno'),
+       "descuentoValor" = COALESCE("descuentoValor", 0),
+       "tipoVenta" = CASE
+         WHEN COALESCE("tipoVenta", '') = '' THEN CASE WHEN "pagoMetodo" = 'crédito' THEN 'MAYOREO' ELSE 'MOSTRADOR' END
+         ELSE "tipoVenta"
+       END`
+  )
+
+  await prismaClient.$executeRawUnsafe(
+    `UPDATE "SaleItem"
+     SET "subtotalLinea" = CASE
+       WHEN "subtotalLinea" = 0 THEN "precio" * "cantidad"
+       ELSE "subtotalLinea"
+     END`
+  )
+}
+
 const markDatabaseIncompatible = (reason: string) => {
   databaseHealthy = false
   lastDatabaseError = reason
@@ -331,6 +415,7 @@ const handlePrismaError = async (error: unknown, channel?: string): Promise<stri
 const ensureDatabaseSchema = async (): Promise<boolean> => {
   try {
     const prismaClient = getPrisma()
+    await ensurePosWholesaleColumns(prismaClient)
     const missing = await checkDatabaseCompatibility(prismaClient)
 
     if (missing.length === 0) {
@@ -497,6 +582,48 @@ app.on('window-all-closed', async () => {
     }
   }
 })
+
+type PosSaleType = 'MOSTRADOR' | 'MAYOREO'
+type DiscountType = 'ninguno' | 'porcentaje' | 'monto'
+
+const normalizarTipoVenta = (tipoVenta?: string | null): PosSaleType =>
+  tipoVenta === 'MAYOREO' ? 'MAYOREO' : 'MOSTRADOR'
+
+const normalizarTipoDescuento = (tipo?: string | null): DiscountType => {
+  if (tipo === 'porcentaje' || tipo === 'monto') return tipo
+  return 'ninguno'
+}
+
+const calcularDescuento = (subtotal: number, tipo: DiscountType, valor: number) => {
+  if (!Number.isFinite(valor) || valor < 0) {
+    throw new Error('El descuento debe ser un número igual o mayor a cero.')
+  }
+
+  if (tipo === 'ninguno') return 0
+
+  if (tipo === 'porcentaje') {
+    if (valor > 100) {
+      throw new Error('El descuento porcentual no puede ser mayor a 100%.')
+    }
+    return Number(((subtotal * valor) / 100).toFixed(2))
+  }
+
+  if (valor > subtotal) {
+    throw new Error('El descuento fijo no puede ser mayor al subtotal.')
+  }
+
+  return Number(valor.toFixed(2))
+}
+
+const obtenerPrecioVenta = (
+  producto: { precio: number; precioMayoreo?: number | null },
+  tipoVenta: PosSaleType
+) => {
+  if (tipoVenta === 'MAYOREO') {
+    return producto.precioMayoreo ?? producto.precio
+  }
+  return producto.precio
+}
 
 /* =========================================================
    IPC HANDLERS – DASHBOARD
@@ -693,6 +820,7 @@ safeHandle(
       saborId: number
       presentacion: string
       precio: number
+      precioMayoreo?: number | null
       costo: number
       sku?: string
       stock?: number
@@ -706,6 +834,7 @@ safeHandle(
         saborId: data.saborId,
         presentacion: data.presentacion,
         precio: data.precio,
+        precioMayoreo: data.precioMayoreo ?? null,
         costo: data.costo,
         sku: data.sku ?? null,
         stock: data.stock ?? 0,
@@ -726,6 +855,7 @@ safeHandle(
       saborId: number
       presentacion: string
       precio: number
+      precioMayoreo?: number | null
       costo: number
       sku?: string | null
       stock?: number
@@ -740,6 +870,7 @@ safeHandle(
         saborId: data.saborId,
         presentacion: data.presentacion,
         precio: data.precio,
+        precioMayoreo: data.precioMayoreo ?? null,
         costo: data.costo,
         sku: data.sku ?? null,
         stock: data.stock,
@@ -896,7 +1027,14 @@ safeHandle(
   'clientes:crear',
   async (
     _event,
-    data: { nombre: string; telefono?: string; limite?: number; saldo?: number; estado?: 'activo' | 'inactivo' }
+    data: {
+      nombre: string
+      telefono?: string
+      limite?: number
+      saldo?: number
+      estado?: 'activo' | 'inactivo'
+      permiteMayoreo?: boolean
+    }
   ) => {
     const prisma = getPrisma()
     return prisma.customer.create({
@@ -905,7 +1043,8 @@ safeHandle(
         telefono: data.telefono ?? null,
         limite: data.limite ?? 0,
         saldo: data.saldo ?? 0,
-        estado: data.estado ?? 'activo'
+        estado: data.estado ?? 'activo',
+        permiteMayoreo: data.permiteMayoreo ?? true
       }
     })
   }
@@ -915,7 +1054,15 @@ safeHandle(
   'clientes:actualizar',
   async (
     _event,
-    data: { id: number; nombre: string; telefono?: string; limite?: number; saldo?: number; estado?: 'activo' | 'inactivo' }
+    data: {
+      id: number
+      nombre: string
+      telefono?: string
+      limite?: number
+      saldo?: number
+      estado?: 'activo' | 'inactivo'
+      permiteMayoreo?: boolean
+    }
   ) => {
     const prisma = getPrisma()
     return prisma.customer.update({
@@ -925,7 +1072,8 @@ safeHandle(
         telefono: data.telefono ?? null,
         limite: data.limite,
         saldo: data.saldo,
-        estado: data.estado
+        estado: data.estado,
+        permiteMayoreo: data.permiteMayoreo
       }
     })
   }
@@ -1201,7 +1349,8 @@ safeHandle(
 
     return prisma.$transaction(async (tx) => {
       const productos = await tx.product.findMany({
-        where: { id: { in: data.items.map((i) => i.productId) } }
+        where: { id: { in: data.items.map((i) => i.productId) } },
+        include: { sabor: true, tipo: true }
       })
       const total = data.items.reduce((sum, item) => {
         const prod = productos.find((p) => p.id === item.productId)
@@ -1214,6 +1363,10 @@ safeHandle(
         data: {
           folio,
           cajeroId,
+          tipoVenta: 'MOSTRADOR',
+          subtotal: total,
+          descuentoTipo: 'ninguno',
+          descuentoValor: 0,
           total,
           pagoMetodo: data.metodo
         }
@@ -1226,7 +1379,8 @@ safeHandle(
             saleId: sale.id,
             productId: item.productId,
             cantidad: item.cantidad,
-            precio: prod.precio
+            precio: prod.precio,
+            subtotalLinea: prod.precio * item.cantidad
           }
         })
       })
@@ -1251,46 +1405,97 @@ safeHandle(
   'pos:venta',
   async (
     _event,
-    data: { items: { productId: number; cantidad: number }[]; customerId?: number | null; cashBoxId?: number | null }
+    data: {
+      items: { productId: number; cantidad: number }[]
+      tipoVenta?: PosSaleType
+      customerId?: number | null
+      cashBoxId?: number | null
+      descuentoTipo?: DiscountType
+      descuentoValor?: number
+    }
   ) => {
     const prisma = getPrisma()
     const cajeroId = await getDefaultUserId(prisma)
     const folio = `POS-${Date.now()}`
+    const tipoVenta = normalizarTipoVenta(data.tipoVenta)
+    const descuentoTipo = normalizarTipoDescuento(data.descuentoTipo)
+    const descuentoValor = Number(data.descuentoValor ?? 0)
+
+    if (data.items.length === 0) {
+      throw new Error('Agrega al menos un producto a la venta.')
+    }
 
     return prisma.$transaction(async (tx) => {
+      const customer = data.customerId
+        ? await tx.customer.findUnique({ where: { id: data.customerId } })
+        : null
+
+      if (tipoVenta === 'MAYOREO') {
+        if (!customer) {
+          throw new Error('Selecciona un cliente válido para una venta de mayoreo.')
+        }
+        if (customer.estado !== 'activo') {
+          throw new Error('El cliente seleccionado está inactivo.')
+        }
+        if (!customer.permiteMayoreo) {
+          throw new Error('El cliente seleccionado no está habilitado para mayoreo.')
+        }
+      }
+
       const productos = await tx.product.findMany({
-        where: { id: { in: data.items.map((i) => i.productId) } }
+        where: { id: { in: data.items.map((i) => i.productId) } },
+        include: { tipo: true, sabor: true }
       })
 
-      const total = data.items.reduce((sum, item) => {
+      const itemsVenta = data.items.map((item) => {
         const prod = productos.find((p) => p.id === item.productId)
         if (!prod) throw new Error('Producto no encontrado.')
         if (prod.stock < item.cantidad) throw new Error('Stock insuficiente.')
-        return sum + prod.precio * item.cantidad
-      }, 0)
+        const precioUnitario = obtenerPrecioVenta(prod, tipoVenta)
+        return {
+          productId: item.productId,
+          cantidad: item.cantidad,
+          precioUnitario,
+          subtotalLinea: Number((precioUnitario * item.cantidad).toFixed(2)),
+          nombre: `${prod.tipo.nombre} ${prod.sabor.nombre}`.trim(),
+          presentacion: prod.presentacion
+        }
+      })
+
+      const subtotal = Number(
+        itemsVenta.reduce((sum, item) => sum + item.subtotalLinea, 0).toFixed(2)
+      )
+      const descuentoAplicado = calcularDescuento(subtotal, descuentoTipo, descuentoValor)
+      const total = Number((subtotal - descuentoAplicado).toFixed(2))
+      const pagoMetodo = data.customerId ? 'crédito' : 'efectivo'
 
       const sale = await tx.sale.create({
         data: {
           folio,
           cajeroId,
+          customerId: data.customerId ?? null,
+          tipoVenta,
+          subtotal,
+          descuentoTipo,
+          descuentoValor: descuentoAplicado,
           total,
-          pagoMetodo: data.customerId ? 'crédito' : 'efectivo'
+          pagoMetodo
         }
       })
 
       await tx.saleItem.createMany({
-        data: data.items.map((item) => {
-          const prod = productos.find((p) => p.id === item.productId)!
+        data: itemsVenta.map((item) => {
           return {
             saleId: sale.id,
             productId: item.productId,
             cantidad: item.cantidad,
-            precio: prod.precio
+            precio: item.precioUnitario,
+            subtotalLinea: item.subtotalLinea
           }
         })
       })
 
-      for (const item of data.items) {
+      for (const item of itemsVenta) {
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.cantidad } }
@@ -1307,7 +1512,7 @@ safeHandle(
       }
 
       await tx.payment.create({
-        data: { saleId: sale.id, monto: total, metodo: data.customerId ? 'crédito' : 'efectivo' }
+        data: { saleId: sale.id, monto: total, metodo: pagoMetodo }
       })
 
       if (data.cashBoxId) {
@@ -1338,7 +1543,19 @@ safeHandle(
         })
       }
 
-      return { saleId: sale.id, folio: sale.folio, total: sale.total, customerId: data.customerId ?? null }
+      return {
+        saleId: sale.id,
+        folio: sale.folio,
+        total: sale.total,
+        subtotal: sale.subtotal,
+        descuentoTipo: sale.descuentoTipo,
+        descuentoValor: sale.descuentoValor,
+        customerId: data.customerId ?? null,
+        tipoVenta,
+        fecha: sale.fecha.toISOString(),
+        customerName: customer?.nombre ?? null,
+        items: itemsVenta
+      }
     })
   }
 )
