@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Las Purepechas">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f6c453"/>
+      <stop offset="100%" stop-color="#df9fc3"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="64" fill="url(#g)"/>
+  <circle cx="92" cy="110" r="38" fill="#fff6d6"/>
+  <circle cx="164" cy="110" r="38" fill="#fff0f6"/>
+  <rect x="80" y="148" width="20" height="52" rx="10" fill="#7b3f00"/>
+  <rect x="156" y="148" width="20" height="52" rx="10" fill="#7b3f00"/>
+  <path d="M60 212c22-18 41-24 68-24s46 6 68 24" fill="none" stroke="#fff7fb" stroke-width="12" stroke-linecap="round"/>
+</svg>

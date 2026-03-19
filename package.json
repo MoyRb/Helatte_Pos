@@ -18,7 +18,7 @@
     "build": "npm run db:template && npm run build:prisma && npm run build:renderer && npm run build:preload && npm run build:main",
     "dist": "npm run build && electron-builder",
     "seed": "tsx prisma/seed.ts",
-    "db:template": "cross-env DATABASE_URL=file:./helatte.db prisma migrate reset --force --skip-generate",
+    "db:template": "cross-env DATABASE_URL=file:./prisma/helatte.db prisma migrate reset --force --skip-generate",
     "postinstall": "npm run build:prisma"
   },
   "dependencies": {
