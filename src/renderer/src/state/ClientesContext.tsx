@@ -19,7 +19,8 @@ const isClienteValido = (value: unknown): value is Customer => {
     typeof posibleCliente.nombre === 'string' &&
     typeof posibleCliente.limite === 'number' &&
     typeof posibleCliente.saldo === 'number' &&
-    typeof posibleCliente.estado === 'string'
+    typeof posibleCliente.estado === 'string' &&
+    typeof posibleCliente.permiteMayoreo === 'boolean'
   );
 };
 

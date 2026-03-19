@@ -16,31 +16,46 @@ const registrarVenta = async (data: {
   cashBoxId?: number;
   customerId?: number;
   cajeroId: number;
+  tipoVenta?: 'MOSTRADOR' | 'MAYOREO';
+  descuentoTipo?: 'ninguno' | 'porcentaje' | 'monto';
+  descuentoValor?: number;
 }) => {
   const productos = await prisma.product.findMany({
     where: { id: { in: data.items.map((item) => item.productId) } }
   });
 
-  const total = data.items.reduce((sum, item) => {
+  const tipoVenta = data.tipoVenta ?? (data.customerId ? 'MAYOREO' : 'MOSTRADOR');
+  const subtotal = data.items.reduce((sum, item) => {
     const producto = productos.find((prod) => prod.id === item.productId);
     if (!producto) throw new Error('Producto no encontrado en seed');
-    return sum + producto.precio * item.cantidad;
+    const precioUnitario = tipoVenta === 'MAYOREO' ? producto.precioMayoreo ?? producto.precio : producto.precio;
+    return sum + precioUnitario * item.cantidad;
   }, 0);
+  const descuentoTipo = data.descuentoTipo ?? 'ninguno';
+  const descuentoValor = data.descuentoValor ?? 0;
+  const total = subtotal - descuentoValor;
 
   const sale = await prisma.sale.create({
     data: {
       folio: `SEED-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       fecha: data.fecha,
       cajeroId: data.cajeroId,
+      customerId: data.customerId ?? null,
+      tipoVenta,
+      subtotal,
+      descuentoTipo,
+      descuentoValor,
       total,
       pagoMetodo: data.metodo,
       items: {
         create: data.items.map((item) => {
           const producto = productos.find((prod) => prod.id === item.productId);
+          const precioUnitario = tipoVenta === 'MAYOREO' ? producto?.precioMayoreo ?? producto?.precio ?? 0 : producto?.precio ?? 0;
           return {
             productId: item.productId,
             cantidad: item.cantidad,
-            precio: producto?.precio ?? 0
+            precio: precioUnitario,
+            subtotalLinea: precioUnitario * item.cantidad
           };
         })
       },
@@ -189,6 +204,7 @@ async function main() {
       saborId: fresa.id,
       presentacion: 'pieza',
       precio: 25,
+      precioMayoreo: 21,
       costo: 9,
       sku: 'PAL-FRE-01',
       stock: 120
@@ -200,6 +216,7 @@ async function main() {
       saborId: mango.id,
       presentacion: 'pieza',
       precio: 27,
+      precioMayoreo: 23,
       costo: 10,
       sku: 'PAL-MAN-01',
       stock: 90
@@ -211,6 +228,7 @@ async function main() {
       saborId: coco.id,
       presentacion: 'litro',
       precio: 120,
+      precioMayoreo: 105,
       costo: 55,
       sku: 'NIE-COC-L',
       stock: 40
@@ -222,6 +240,7 @@ async function main() {
       saborId: tamarindo.id,
       presentacion: 'vaso',
       precio: 45,
+      precioMayoreo: 39,
       costo: 18,
       sku: 'YOG-TAM-01',
       stock: 60
@@ -253,16 +272,16 @@ async function main() {
   });
 
   const clienteMonarca = await prisma.customer.create({
-    data: { nombre: 'Cafetería Monarca', telefono: '333-000-0001', limite: 5000, saldo: 1500 }
+    data: { nombre: 'Cafetería Monarca', telefono: '333-000-0001', limite: 5000, saldo: 1500, permiteMayoreo: true }
   });
   const clienteEscuela = await prisma.customer.create({
-    data: { nombre: 'Escuela San Ángel', telefono: '333-000-0002', limite: 3000, saldo: 0 }
+    data: { nombre: 'Escuela San Ángel', telefono: '333-000-0002', limite: 3000, saldo: 0, permiteMayoreo: true }
   });
   const clienteEventos = await prisma.customer.create({
-    data: { nombre: 'Eventos Luna', telefono: '333-000-0003', limite: 2000, saldo: 800 }
+    data: { nombre: 'Eventos Luna', telefono: '333-000-0003', limite: 2000, saldo: 800, permiteMayoreo: true }
   });
   const clienteDonaMary = await prisma.customer.create({
-    data: { nombre: 'Cocina Doña Mary', telefono: '333-000-0004', limite: 3500, saldo: 0, estado: 'inactivo' }
+    data: { nombre: 'Cocina Doña Mary', telefono: '333-000-0004', limite: 3500, saldo: 0, estado: 'inactivo', permiteMayoreo: false }
   });
 
   const creditoMonarca = await prisma.credit.create({
@@ -412,7 +431,10 @@ async function main() {
     fecha: daysAgo(1),
     cashBoxId: cajaGrande.id,
     customerId: clienteEventos.id,
-    cajeroId: cajero.id
+    cajeroId: cajero.id,
+    tipoVenta: 'MAYOREO',
+    descuentoTipo: 'porcentaje',
+    descuentoValor: 16.5
   });
 
   await registrarVenta({

@@ -41,6 +41,7 @@ model Product {
   saborId      Int
   presentacion String
   precio       Float
+  precioMayoreo Float?
   costo        Float
   foto         String?
   stock        Int     @default(0)
@@ -116,6 +117,11 @@ model Sale {
   folio      String   @unique
   fecha      DateTime @default(now())
   cajeroId   Int
+  customerId Int?
+  tipoVenta  String   @default("MOSTRADOR")
+  subtotal   Float    @default(0)
+  descuentoTipo String @default("ninguno")
+  descuentoValor Float @default(0)
   total      Float
   pagoMetodo String
 
@@ -132,6 +138,7 @@ model SaleItem {
   productId Int
   cantidad  Int
   precio    Float
+  subtotalLinea Float @default(0)
 
   sale    Sale    @relation(fields: [saleId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -175,6 +182,7 @@ model Customer {
   limite   Float   @default(0)
   saldo    Float   @default(0)
   estado   String  @default("activo")
+  permiteMayoreo Boolean @default(true)
 
   creditos     Credit[]
   pagares      PromissoryNote[]
