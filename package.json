@@ -10,7 +10,7 @@
     "dev:main": "tsc -p tsconfig.main.json --watch",
     "dev:preload": "tsc -p tsconfig.preload.json --watch",
     "dev:electron": "wait-on tcp:5173 file:dist/main/index.js file:dist/preload/index.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
-    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:preload\" \"npm:dev:electron\"",
+    "dev": "npm run db:template && concurrently -k \"npm:dev:renderer\" \"npm:dev:main\" \"npm:dev:preload\" \"npm:dev:electron\"",
     "build:prisma": "prisma generate",
     "build:renderer": "cd src/renderer && vite build",
     "build:preload": "tsc -p tsconfig.preload.json",
@@ -18,7 +18,7 @@
     "build": "npm run db:template && npm run build:prisma && npm run build:renderer && npm run build:preload && npm run build:main",
     "dist": "npm run build && electron-builder",
     "seed": "tsx prisma/seed.ts",
-    "db:template": "cross-env DATABASE_URL=file:./prisma/helatte.db prisma migrate reset --force --skip-generate",
+    "db:template": "cross-env DATABASE_URL=file:./helatte.db prisma migrate reset --force --skip-generate",
     "postinstall": "npm run build:prisma"
   },
   "dependencies": {

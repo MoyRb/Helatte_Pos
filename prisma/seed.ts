@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'file:./prisma/helatte.db';
+process.env.DATABASE_URL = process.env.DATABASE_URL ?? 'file:./helatte.db';
 const prisma = new PrismaClient();
 
 type BrandSeedContext = {

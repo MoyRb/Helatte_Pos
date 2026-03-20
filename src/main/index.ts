@@ -181,7 +181,7 @@ const dbPath = path.join(app.getPath('userData'), 'helatte.db')
 const brandConfigPath = path.join(app.getPath('userData'), 'brand-config.json')
 
 const templateDbPath = isDev
-  ? path.join(__dirname, '../../prisma/helatte.db')
+  ? path.join(app.getAppPath(), 'prisma', 'helatte.db')
   : path.join(process.resourcesPath, 'prisma', 'helatte.db')
 
 if (!fs.existsSync(dbPath)) {
@@ -191,8 +191,7 @@ if (!fs.existsSync(dbPath)) {
   }
 }
 
-process.env.DATABASE_URL =
-  process.env.DATABASE_URL ?? `file:${dbPath}`
+process.env.DATABASE_URL = `file:${dbPath}`
 
 const BRAND_DEFINITIONS = [
   {
@@ -225,6 +224,8 @@ type SqliteTableInfo = {
   name: string
 }
 
+const REQUIRED_CORE_TABLES = ['User', 'ProductType', 'Product', 'Sale'] as const
+
 const columnExists = async (
   prismaClient: PrismaClient,
   table: string,
@@ -249,8 +250,20 @@ const addColumnIfMissing = async (
   column: string,
   sql: string
 ) => {
+  if (!(await tableExists(prismaClient, table))) return false
   if (await columnExists(prismaClient, table, column)) return
   await prismaClient.$executeRawUnsafe(sql)
+}
+
+const getMissingCoreTables = async (prismaClient: PrismaClient) => {
+  const checks = await Promise.all(
+    REQUIRED_CORE_TABLES.map(async (table) => ({
+      table,
+      exists: await tableExists(prismaClient, table)
+    }))
+  )
+
+  return checks.filter((item) => !item.exists).map((item) => item.table)
 }
 
 const readAppConfig = (): BrandConfig => {
@@ -549,28 +562,34 @@ const ensurePosWholesaleColumns = async (prismaClient: PrismaClient) => {
     'ALTER TABLE "SaleItem" ADD COLUMN "subtotalLinea" REAL NOT NULL DEFAULT 0'
   )
 
-  await prismaClient.$executeRawUnsafe(
-    `UPDATE "Sale"
-     SET
-       "subtotal" = CASE WHEN "subtotal" = 0 THEN "total" ELSE "subtotal" END,
-       "descuentoTipo" = COALESCE("descuentoTipo", 'ninguno'),
-       "descuentoValor" = COALESCE("descuentoValor", 0),
-       "tipoVenta" = CASE
-         WHEN COALESCE("tipoVenta", '') = '' THEN CASE WHEN "pagoMetodo" = 'crédito' THEN 'MAYOREO' ELSE 'MOSTRADOR' END
-         ELSE "tipoVenta"
-       END`
-  )
+  if (await tableExists(prismaClient, 'Sale')) {
+    await prismaClient.$executeRawUnsafe(
+      `UPDATE "Sale"
+       SET
+         "subtotal" = CASE WHEN "subtotal" = 0 THEN "total" ELSE "subtotal" END,
+         "descuentoTipo" = COALESCE("descuentoTipo", 'ninguno'),
+         "descuentoValor" = COALESCE("descuentoValor", 0),
+         "tipoVenta" = CASE
+           WHEN COALESCE("tipoVenta", '') = '' THEN CASE WHEN "pagoMetodo" = 'crédito' THEN 'MAYOREO' ELSE 'MOSTRADOR' END
+           ELSE "tipoVenta"
+         END`
+    )
+  }
 
-  await prismaClient.$executeRawUnsafe(
-    `UPDATE "SaleItem"
-     SET "subtotalLinea" = CASE
-       WHEN "subtotalLinea" = 0 THEN "precio" * "cantidad"
-       ELSE "subtotalLinea"
-     END`
-  )
+  if (await tableExists(prismaClient, 'SaleItem')) {
+    await prismaClient.$executeRawUnsafe(
+      `UPDATE "SaleItem"
+       SET "subtotalLinea" = CASE
+         WHEN "subtotalLinea" = 0 THEN "precio" * "cantidad"
+         ELSE "subtotalLinea"
+       END`
+    )
+  }
 }
 
 const ensureProductionTables = async (prismaClient: PrismaClient) => {
+  if (!(await tableExists(prismaClient, 'Product'))) return
+
   await prismaClient.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "ProductionPlan" (
       "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -678,6 +697,36 @@ const resetDatabaseFromTemplate = async (): Promise<boolean> => {
   }
 }
 
+const ensureCoreSchemaFromTemplate = async (): Promise<boolean> => {
+  const prismaClient = getPrisma()
+  const missingCoreTables = await getMissingCoreTables(prismaClient)
+
+  if (missingCoreTables.length === 0) return true
+
+  console.warn('[db] Faltan tablas base, se intentará restaurar desde plantilla.', {
+    dbPath,
+    templateDbPath,
+    missingCoreTables
+  })
+
+  if (!(await resetDatabaseFromTemplate())) {
+    markDatabaseIncompatible(
+      `Faltan tablas base (${missingCoreTables.join(', ')}) y no se pudo restaurar la plantilla.`
+    )
+    return false
+  }
+
+  const restoredPrisma = getPrisma()
+  const remainingMissing = await getMissingCoreTables(restoredPrisma)
+
+  if (remainingMissing.length === 0) return true
+
+  markDatabaseIncompatible(
+    `La plantilla restaurada sigue incompleta. Faltan: ${remainingMissing.join(', ')}`
+  )
+  return false
+}
+
 const promptDatabaseReset = async (missing: string[], reason: string): Promise<boolean> => {
   if (databaseDialogOpen) return false
   databaseDialogOpen = true
@@ -748,6 +797,8 @@ const handlePrismaError = async (error: unknown, channel?: string): Promise<stri
 
 const ensureDatabaseSchema = async (): Promise<boolean> => {
   try {
+    if (!(await ensureCoreSchemaFromTemplate())) return false
+
     const prismaClient = getPrisma()
     await ensureBrandTable(prismaClient)
     await ensurePosWholesaleColumns(prismaClient)
