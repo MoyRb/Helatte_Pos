@@ -18,21 +18,25 @@ export default function Dashboard() {
   const [tablas, setTablas] = useState<DashboardSummary['tablas'] | null>(null);
   const [graficas, setGraficas] = useState<DashboardSummary['graficas'] | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const cargar = async () => {
     setCargando(true);
+    setError(null);
 
-    const [kpisResult, tablasResult, graficasResult] = await Promise.allSettled([
-      window.helatte.obtenerDashboard().then((res) => res.kpis),
-      window.helatte.obtenerDashboard().then((res) => res.tablas),
-      window.helatte.obtenerDashboard().then((res) => res.graficas)
-    ]);
-
-    setKpis((prev) => (kpisResult.status === 'fulfilled' ? kpisResult.value : prev));
-    setTablas((prev) => (tablasResult.status === 'fulfilled' ? tablasResult.value : prev));
-    setGraficas((prev) => (graficasResult.status === 'fulfilled' ? graficasResult.value : prev));
-
-    setCargando(false);
+    try {
+      const resumen = await window.helatte.obtenerDashboard();
+      setKpis(resumen.kpis);
+      setTablas(resumen.tablas);
+      setGraficas(resumen.graficas);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cargar el dashboard.');
+      setKpis(null);
+      setTablas(null);
+      setGraficas(null);
+    } finally {
+      setCargando(false);
+    }
   };
 
   useEffect(() => {
@@ -41,7 +45,24 @@ export default function Dashboard() {
 
   const refrisChart = useMemo(() => (graficas ? graficas.refrisAsignadosVsLibres : []), [graficas]);
   const flujoChart = useMemo(() => (graficas ? graficas.ingresosVsEgresos : []), [graficas]);
-  const tieneContenido = Boolean(kpis || tablas || graficas);
+  const tieneKpisReales = Boolean(
+    kpis &&
+      (kpis.cajaDia !== 0 ||
+        kpis.ventasDia !== 0 ||
+        kpis.clientesConAdeudo !== 0 ||
+        kpis.refrisAsignados !== 0 ||
+        kpis.refrisDisponibles !== 0)
+  );
+  const tieneTablasReales = Boolean(
+    (tablas?.ultimasVentas.length ?? 0) > 0 ||
+      (tablas?.clientesSaldo.length ?? 0) > 0 ||
+      (tablas?.inventarioBajo.length ?? 0) > 0
+  );
+  const tieneGraficasReales = Boolean(
+    flujoChart.some((item) => item.ingresos > 0 || item.egresos > 0) ||
+      refrisChart.some((item) => item.valor > 0)
+  );
+  const tieneContenido = tieneKpisReales || tieneTablasReales || tieneGraficasReales;
 
   return (
     <div className="space-y-4">
@@ -68,6 +89,8 @@ export default function Dashboard() {
 
       {cargando ? (
         <p className="text-sm text-text/65">Cargando información...</p>
+      ) : error ? (
+        <p className="text-sm text-danger">{error}</p>
       ) : tieneContenido ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -149,7 +172,13 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-text/65">Sin información para mostrar.</p>
+        <div className="card p-6 text-sm text-text/65">
+          <p className="font-semibold text-text">Sin información para mostrar.</p>
+          <p className="mt-1">
+            El dashboard real ya no usa datos demo: cuando no hay ventas, clientes, inventario o movimientos,
+            se muestra este estado vacío.
+          </p>
+        </div>
       )}
     </div>
   );
@@ -179,23 +208,29 @@ function DataCard({
         <h3 className="font-semibold">{title}</h3>
         {subtitle && <p className="text-xs text-text/55">{subtitle}</p>}
       </div>
-      <div className="space-y-2">
-        {items.map((item, idx) => (
-          <div
-            key={`${item.primary}-${idx}`}
-            className="flex items-center justify-between rounded-xl border border-borderSoft/80 bg-sky/12 px-3 py-2 text-sm"
-          >
-            <div>
-              <p className="font-semibold">{item.primary}</p>
-              {item.secondary && <p className="text-xs text-text/65">{item.secondary}</p>}
+      {items.length ? (
+        <div className="space-y-2">
+          {items.map((item, idx) => (
+            <div
+              key={`${item.primary}-${idx}`}
+              className="flex items-center justify-between rounded-xl border border-borderSoft/80 bg-sky/12 px-3 py-2 text-sm"
+            >
+              <div>
+                <p className="font-semibold">{item.primary}</p>
+                {item.secondary && <p className="text-xs text-text/65">{item.secondary}</p>}
+              </div>
+              <div className="text-right">
+                {item.badge && <p className="text-xs text-text/65">{item.badge}</p>}
+                <p className="font-semibold">{item.value}</p>
+              </div>
             </div>
-            <div className="text-right">
-              {item.badge && <p className="text-xs text-text/65">{item.badge}</p>}
-              <p className="font-semibold">{item.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl border border-dashed border-borderSoft/80 px-3 py-4 text-sm text-text/55">
+          Sin datos disponibles en este módulo.
+        </p>
+      )}
     </div>
   );
 }
