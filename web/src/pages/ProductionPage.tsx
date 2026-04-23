@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DocumentArrowDownIcon, PlusIcon, CheckBadgeIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,6 +9,7 @@ type PlanStatus = 'draft' | 'confirmed';
 
 type ProductionPlan = {
   id: string;
+  brandId: string;
   planDate: string;
   status: PlanStatus;
   responsible: string;
@@ -74,11 +75,16 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
 
   const sortedProducts = useMemo(() => [...products].sort((a, b) => a.name.localeCompare(b.name)), [products]);
 
-  const loadPlans = async () => {
+  const resetFormState = useCallback(() => {
+    setForm({ ...emptyForm, planDate: new Date().toISOString().slice(0, 10), items: [{ ...emptyItem }] });
+  }, []);
+
+  const loadPlans = useCallback(async (targetBrandId: string) => {
     setLoadingPlans(true);
     const { data, error } = await supabase
       .from('production_plans')
-      .select('id, plan_date, status, responsible, notes, applied_at, created_at')
+      .select('id, brand_id, plan_date, status, responsible, notes, applied_at, created_at')
+      .eq('brand_id', targetBrandId)
       .order('plan_date', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -88,9 +94,15 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
       return;
     }
 
+    console.log('ProductionPage loadPlans', {
+      activeBrandId: targetBrandId,
+      loadedPlanBrandIds: (data ?? []).map((plan) => plan.brand_id),
+    });
+
     setPlans(
       (data ?? []).map((plan) => ({
         id: plan.id,
+        brandId: plan.brand_id,
         planDate: plan.plan_date,
         status: plan.status,
         responsible: plan.responsible ?? '',
@@ -100,11 +112,14 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
       })),
     );
     setLoadingPlans(false);
-  };
+  }, []);
 
   useEffect(() => {
-    void loadPlans();
-  }, []);
+    console.log('ProductionPage active brand changed', { activeBrandId: brandId });
+    setPlans([]);
+    resetFormState();
+    void loadPlans(brandId);
+  }, [brandId, loadPlans, resetFormState]);
 
   const addItem = () => {
     setForm((prev) => ({
@@ -153,8 +168,9 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
   const loadPlanIntoForm = async (planId: string) => {
     const { data: planData, error: planError } = await supabase
       .from('production_plans')
-      .select('id, plan_date, status, responsible, notes')
+      .select('id, brand_id, plan_date, status, responsible, notes')
       .eq('id', planId)
+      .eq('brand_id', brandId)
       .single();
 
     if (planError || !planData) {
@@ -211,16 +227,18 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
 
     setSaving(true);
     const planPayload = {
+      brand_id: brandId,
       plan_date: form.planDate,
       status: nextStatus,
       responsible: form.responsible.trim() || null,
       notes: form.notes.trim() || null,
     };
+    console.log('ProductionPage save payload', { activeBrandId: brandId, payloadBrandId: planPayload.brand_id });
 
     let planId = form.id;
 
     if (planId) {
-      const { error: planUpdateError } = await supabase.from('production_plans').update(planPayload).eq('id', planId);
+      const { error: planUpdateError } = await supabase.from('production_plans').update(planPayload).eq('id', planId).eq('brand_id', brandId);
       if (planUpdateError) {
         setSaving(false);
         window.alert(planUpdateError.message);
@@ -234,10 +252,7 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
         return;
       }
     } else {
-      const createPayload = {
-        brand_id: brandId,
-        ...planPayload,
-      };
+      const createPayload = { ...planPayload };
       console.log('production_plans insert payload', createPayload);
       const { data: createdPlan, error: createPlanError } = await supabase
         .from('production_plans')
@@ -281,7 +296,7 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
     }
 
     setSaving(false);
-    await loadPlans();
+    await loadPlans(brandId);
     await loadPlanIntoForm(planId);
 
     if (nextStatus === 'confirmed') {
@@ -292,6 +307,12 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
   const applyPlan = async () => {
     const currentPlanId = form.id;
     if (!currentPlanId) return;
+    const planInActiveBrand = plans.find((plan) => plan.id === currentPlanId && plan.brandId === brandId);
+    if (!planInActiveBrand) {
+      window.alert('El plan actual no pertenece a la marca activa.');
+      resetFormState();
+      return;
+    }
 
     const approved = window.confirm('¿Aplicar producción? Esto incrementará inventario de producto terminado.');
     if (!approved) return;
@@ -303,7 +324,7 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
       return;
     }
 
-    await Promise.all([loadPlans(), loadPlanIntoForm(currentPlanId), refreshData()]);
+    await Promise.all([loadPlans(brandId), loadPlanIntoForm(currentPlanId), refreshData()]);
     window.alert('Producción aplicada e inventario actualizado.');
   };
 
@@ -385,7 +406,7 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
           <h2 className="text-lg font-semibold">Planes de producción</h2>
           <button
             className="btn-secondary text-xs"
-            onClick={() => setForm({ ...emptyForm, planDate: today })}
+            onClick={() => resetFormState()}
           >
             Nuevo plan
           </button>
@@ -525,7 +546,7 @@ export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = 
             type="button"
             onClick={() => void applyPlan()}
             className="btn-secondary"
-            disabled={!form.id || form.status !== 'confirmed' || Boolean(selectedPlan?.appliedAt)}
+            disabled={!form.id || form.status !== 'confirmed' || Boolean(selectedPlan?.appliedAt) || selectedPlan?.brandId !== brandId}
           >
             Aplicar a inventario
           </button>
