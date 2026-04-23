@@ -10,6 +10,7 @@ import {
   BeakerIcon,
   ReceiptPercentIcon,
   TagIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { key: 'pos', label: 'POS', icon: ShoppingCartIcon },
   { key: 'wholesale', label: 'Mayoreo', icon: TagIcon },
   { key: 'products', label: 'Productos', icon: CubeIcon },
+  { key: 'production', label: 'Producción', icon: WrenchScrewdriverIcon },
   { key: 'finances', label: 'Finanzas', icon: BanknotesIcon },
   { key: 'clients', label: 'Clientes', icon: UsersIcon },
   { key: 'credits', label: 'Créditos', icon: ClipboardDocumentListIcon },
