@@ -29,12 +29,21 @@ export type Sale = {
 
 export type FinanceMovement = {
   id: string;
-  box: 'chica' | 'grande';
+  box: string;
+  cashBoxId: string;
+  cashBoxName: string;
   kind: 'entrada' | 'salida';
   amount: number;
   concept: string;
   date: string;
   source?: 'manual' | 'sale' | 'sale_wholesale' | 'venta';
+};
+
+export type CashBox = {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
 };
 
 export type Client = {
@@ -101,6 +110,7 @@ const toResult = (success: boolean, message?: string) => ({ success, message });
 type PosContextValue = {
   products: Product[];
   sales: Sale[];
+  cashBoxes: CashBox[];
   financeMovements: FinanceMovement[];
   clients: Client[];
   credits: Credit[];
@@ -119,7 +129,7 @@ type PosContextValue = {
     payload: WholesalePayload,
   ) => Promise<{ success: boolean; message?: string; sale?: Sale }>;
   addFinanceMovement: (movement: Omit<FinanceMovement, 'id'>) => Promise<void>;
-  deleteCashMovement: (box: FinanceMovement['box'], movementId: string) => Promise<void>;
+  deleteCashMovement: (movementId: string) => Promise<void>;
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
   updateClient: (id: string, changes: Partial<Omit<Client, 'id'>>) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
@@ -141,6 +151,7 @@ const formatWholesaleFolio = (folioNumber: number) => `MAY-${String(folioNumber)
 export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string }> = ({ children, brandId }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [cashBoxes, setCashBoxes] = useState<CashBox[]>([]);
   const [financeMovements, setFinanceMovements] = useState<FinanceMovement[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [credits, setCredits] = useState<Credit[]>([]);
@@ -154,18 +165,28 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
   const refreshData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    await supabase.rpc('ensure_default_cash_boxes', { target_brand: brandId });
 
-    const [productsRes, clientsRes, salesRes, saleItemsRes, materialsRes, inventoryRes] = await Promise.all([
+    const [productsRes, clientsRes, salesRes, saleItemsRes, materialsRes, inventoryRes, cashBoxesRes, cashMovementsRes] = await Promise.all([
       supabase.from('products').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
       supabase.from('customers').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
       supabase.from('sales').select('*').eq('brand_id', brandId).order('created_at', { ascending: false }),
       supabase.from('sale_items').select('*').eq('brand_id', brandId),
       supabase.from('raw_materials').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
       supabase.from('inventory_movements').select('*').eq('brand_id', brandId).order('created_at', { ascending: false }),
+      supabase.from('cash_boxes').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
+      supabase.from('cash_movements').select('*').eq('brand_id', brandId).order('created_at', { ascending: false }),
     ]);
 
     const firstError =
-      productsRes.error || clientsRes.error || salesRes.error || saleItemsRes.error || materialsRes.error || inventoryRes.error;
+      productsRes.error ||
+      clientsRes.error ||
+      salesRes.error ||
+      saleItemsRes.error ||
+      materialsRes.error ||
+      inventoryRes.error ||
+      cashBoxesRes.error ||
+      cashMovementsRes.error;
 
     if (firstError) {
       setError(firstError.message);
@@ -211,16 +232,38 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
     }));
 
     setSales(mappedSales);
-    const financeFromSales = mappedSales.map((sale) => ({
-      id: `sale-${sale.id}`,
-      box: 'grande' as const,
-      kind: 'entrada' as const,
-      amount: sale.total,
-      concept: sale.channel === 'wholesale' ? `Venta Mayoreo ${sale.folio ?? ''}`.trim() : 'Venta POS',
-      date: sale.date,
-      source: sale.channel === 'wholesale' ? 'sale_wholesale' as const : 'sale' as const,
+
+    const mappedCashBoxes: CashBox[] = (cashBoxesRes.data ?? []).map((box) => ({
+      id: box.id,
+      name: box.name,
+      description: box.description ?? '',
+      isActive: box.is_active,
     }));
-    setFinanceMovements(financeFromSales);
+    setCashBoxes(mappedCashBoxes);
+
+    const cashBoxById = new Map<string, CashBox>(mappedCashBoxes.map((box) => [box.id, box]));
+    const mappedFinanceMovements: FinanceMovement[] = (cashMovementsRes.data ?? [])
+      .filter((movement) => cashBoxById.has(movement.cash_box_id))
+      .map((movement) => {
+        const box = cashBoxById.get(movement.cash_box_id)!;
+        const source = movement.reference === 'sale_pos'
+          ? 'sale'
+          : movement.reference === 'sale_wholesale'
+            ? 'sale_wholesale'
+            : 'manual';
+        return {
+          id: movement.id,
+          box: box.name,
+          cashBoxId: box.id,
+          cashBoxName: box.name,
+          kind: movement.movement_type,
+          amount: Number(movement.amount),
+          concept: movement.notes ?? movement.reference ?? 'Movimiento de caja',
+          date: movement.created_at,
+          source,
+        };
+      });
+    setFinanceMovements(mappedFinanceMovements);
 
     setRawMaterials(
       (materialsRes.data ?? []).map((material) => ({
@@ -321,6 +364,9 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
 
     if (saleError || !saleData) return toResult(false, saleError?.message ?? 'No se pudo crear la venta');
 
+    const defaultBigCashBox = cashBoxes.find((box) => box.name.toLowerCase() === 'caja grande') ?? cashBoxes[0];
+    if (!defaultBigCashBox) return toResult(false, 'No hay caja disponible para registrar la venta');
+
     const saleItemsPayload = saleItems.map((item) => ({
       brand_id: brandId,
       sale_id: saleData.id,
@@ -346,6 +392,16 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
         note: 'Salida por venta POS',
       });
     }
+
+    const { error: cashError } = await supabase.from('cash_movements').insert({
+      brand_id: brandId,
+      cash_box_id: defaultBigCashBox.id,
+      movement_type: 'entrada',
+      amount: total,
+      notes: 'Venta POS',
+      reference: 'sale_pos',
+    });
+    if (cashError) return toResult(false, cashError.message);
 
     await refreshData();
     return toResult(true);
@@ -389,6 +445,9 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
 
     if (saleError || !saleData) return { success: false, message: saleError?.message ?? 'No se pudo crear la venta' };
 
+    const defaultBigCashBox = cashBoxes.find((box) => box.name.toLowerCase() === 'caja grande') ?? cashBoxes[0];
+    if (!defaultBigCashBox) return { success: false, message: 'No hay caja disponible para registrar la venta' };
+
     const saleItemsPayload = saleItems.map((item) => ({
       brand_id: brandId,
       sale_id: saleData.id,
@@ -415,6 +474,16 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
       });
     }
 
+    const { error: cashError } = await supabase.from('cash_movements').insert({
+      brand_id: brandId,
+      cash_box_id: defaultBigCashBox.id,
+      movement_type: 'entrada',
+      amount: total,
+      notes: `Venta Mayoreo ${folio}`,
+      reference: 'sale_wholesale',
+    });
+    if (cashError) return { success: false, message: cashError.message };
+
     const sale: Sale = {
       id: saleData.id,
       items: saleItems,
@@ -432,8 +501,28 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
     return { success: true, sale };
   };
 
-  const addFinanceMovement = async () => {};
-  const deleteCashMovement = async () => {};
+  const addFinanceMovement = async (movement: Omit<FinanceMovement, 'id'>) => {
+    const { error: insertError } = await supabase.from('cash_movements').insert({
+      brand_id: brandId,
+      cash_box_id: movement.cashBoxId,
+      movement_type: movement.kind,
+      amount: movement.amount,
+      notes: movement.concept,
+      reference: movement.source ?? 'manual',
+      created_at: movement.date,
+    });
+    if (insertError) throw new Error(insertError.message);
+    await refreshData();
+  };
+  const deleteCashMovement = async (movementId: string) => {
+    const { error: deleteError } = await supabase
+      .from('cash_movements')
+      .delete()
+      .eq('id', movementId)
+      .eq('brand_id', brandId);
+    if (deleteError) throw new Error(deleteError.message);
+    await refreshData();
+  };
 
   const addClient = async (client: Omit<Client, 'id'>) => {
     const { error: insertError } = await supabase.from('customers').insert({
@@ -557,6 +646,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
     () => ({
       products,
       sales,
+      cashBoxes,
       financeMovements,
       clients,
       credits,
@@ -590,6 +680,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string 
     [
       products,
       sales,
+      cashBoxes,
       financeMovements,
       clients,
       credits,
