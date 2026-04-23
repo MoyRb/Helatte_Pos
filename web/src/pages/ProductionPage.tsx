@@ -65,7 +65,7 @@ const formatDisplayDate = (value: string) => {
   return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
 };
 
-export const ProductionPage: React.FC<{ brandName: string }> = ({ brandName }) => {
+export const ProductionPage: React.FC<{ brandId: string; brandName: string }> = ({ brandId, brandName }) => {
   const { products, refreshData } = usePos();
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -215,7 +215,6 @@ export const ProductionPage: React.FC<{ brandName: string }> = ({ brandName }) =
       status: nextStatus,
       responsible: form.responsible.trim() || null,
       notes: form.notes.trim() || null,
-      confirmed_at: nextStatus === 'confirmed' ? new Date().toISOString() : null,
     };
 
     let planId = form.id;
@@ -235,9 +234,14 @@ export const ProductionPage: React.FC<{ brandName: string }> = ({ brandName }) =
         return;
       }
     } else {
+      const createPayload = {
+        brand_id: brandId,
+        ...planPayload,
+      };
+      console.log('production_plans insert payload', createPayload);
       const { data: createdPlan, error: createPlanError } = await supabase
         .from('production_plans')
-        .insert(planPayload)
+        .insert(createPayload)
         .select('id')
         .single();
 
@@ -248,6 +252,12 @@ export const ProductionPage: React.FC<{ brandName: string }> = ({ brandName }) =
       }
 
       planId = createdPlan.id;
+    }
+
+    if (!planId) {
+      setSaving(false);
+      window.alert('No se encontró el identificador del plan.');
+      return;
     }
 
     const itemsPayload = validItems.map((item, index) => ({
@@ -267,12 +277,6 @@ export const ProductionPage: React.FC<{ brandName: string }> = ({ brandName }) =
     if (insertItemsError) {
       setSaving(false);
       window.alert(insertItemsError.message);
-      return;
-    }
-
-    if (!planId) {
-      setSaving(false);
-      window.alert('No se encontró el identificador del plan.');
       return;
     }
 
