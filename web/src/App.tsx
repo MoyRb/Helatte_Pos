@@ -12,21 +12,10 @@ import { FridgesPage } from './pages/FridgesPage';
 import { MaterialsPage } from './pages/MaterialsPage';
 import { SalesPage } from './pages/SalesPage';
 import { WholesalePage } from './pages/WholesalePage';
+import { ProductionPage } from './pages/ProductionPage';
 import { ExportButton } from './components/ExportButton';
 import { supabase } from './lib/supabase';
 
-const views = {
-  dashboard: <DashboardPage />,
-  pos: <PosPage />,
-  wholesale: <WholesalePage />,
-  products: <ProductsPage />,
-  finances: <FinancePage />,
-  clients: <ClientsPage />,
-  credits: <CreditsPage />,
-  fridges: <FridgesPage />,
-  materials: <MaterialsPage />,
-  sales: <SalesPage />,
-};
 
 type BrandMembership = { brand_id: string; brands: { id: string; name: string } | null };
 
@@ -41,9 +30,10 @@ const titles: Record<string, string> = {
   fridges: 'Refris',
   materials: 'Materias primas',
   sales: 'Ventas',
+  production: 'Producción',
 };
 
-type ViewKey = keyof typeof views;
+type ViewKey = 'dashboard' | 'pos' | 'wholesale' | 'products' | 'production' | 'finances' | 'clients' | 'credits' | 'fridges' | 'materials' | 'sales';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -94,6 +84,21 @@ const LoginPage: React.FC = () => {
 
 const AppContent: React.FC<{ membership: BrandMembership; memberships: BrandMembership[]; onChangeBrand: (id: string) => void }> = ({ membership, memberships, onChangeBrand }) => {
   const [view, setView] = useState<ViewKey>('dashboard');
+
+
+  const views: Record<ViewKey, React.ReactNode> = {
+    dashboard: <DashboardPage />,
+    pos: <PosPage />,
+    wholesale: <WholesalePage />,
+    products: <ProductsPage />,
+    production: <ProductionPage brandName={membership.brands?.name ?? 'Marca'} />,
+    finances: <FinancePage />,
+    clients: <ClientsPage />,
+    credits: <CreditsPage />,
+    fridges: <FridgesPage />,
+    materials: <MaterialsPage />,
+    sales: <SalesPage />,
+  };
 
   return (
     <PosProvider brandId={membership.brand_id}>
