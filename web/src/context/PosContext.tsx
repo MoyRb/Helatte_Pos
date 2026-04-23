@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { loadFromStorage, saveToStorage } from '../utils/storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 export type Product = {
   id: string;
@@ -96,6 +96,8 @@ type WholesalePayload = {
   discount?: { type: 'amount' | 'percent'; value: number };
 };
 
+const toResult = (success: boolean, message?: string) => ({ success, message });
+
 type PosContextValue = {
   products: Product[];
   sales: Sale[];
@@ -105,305 +107,366 @@ type PosContextValue = {
   fridgeLoans: FridgeLoan[];
   rawMaterials: RawMaterial[];
   rawMaterialMovements: RawMaterialMovement[];
+  loading: boolean;
+  error: string | null;
   nextWholesaleFolio: () => string;
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (id: string, changes: Partial<Omit<Product, 'id'>>) => void;
-  deleteProduct: (id: string) => void;
-  recordSale: (items: SalePayload) => { success: boolean; message?: string };
+  refreshData: () => Promise<void>;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  updateProduct: (id: string, changes: Partial<Omit<Product, 'id'>>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  recordSale: (items: SalePayload) => Promise<{ success: boolean; message?: string }>;
   createWholesaleSale: (
     payload: WholesalePayload,
-  ) => { success: boolean; message?: string; sale?: Sale };
-  addFinanceMovement: (movement: Omit<FinanceMovement, 'id'>) => void;
-  deleteCashMovement: (box: FinanceMovement['box'], movementId: string) => void;
-  addClient: (client: Omit<Client, 'id'>) => void;
-  updateClient: (id: string, changes: Partial<Omit<Client, 'id'>>) => void;
-  deleteClient: (id: string) => void;
+  ) => Promise<{ success: boolean; message?: string; sale?: Sale }>;
+  addFinanceMovement: (movement: Omit<FinanceMovement, 'id'>) => Promise<void>;
+  deleteCashMovement: (box: FinanceMovement['box'], movementId: string) => Promise<void>;
+  addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  updateClient: (id: string, changes: Partial<Omit<Client, 'id'>>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   addCredit: (credit: Omit<Credit, 'id' | 'payments' | 'status'>) => void;
   addCreditPayment: (creditId: string, payment: Omit<CreditPayment, 'id'>) => void;
   updateCreditStatus: (creditId: string, status: Credit['status']) => void;
   addFridgeLoan: (loan: Omit<FridgeLoan, 'id' | 'status' | 'returnDate'>) => void;
   markFridgeReturned: (loanId: string) => void;
-  addRawMaterial: (material: Omit<RawMaterial, 'id'>) => void;
-  updateRawMaterial: (id: string, changes: Partial<Omit<RawMaterial, 'id'>>) => void;
-  deleteRawMaterial: (id: string) => void;
-  recordMaterialMovement: (movement: Omit<RawMaterialMovement, 'id'>) => { success: boolean; message?: string };
+  addRawMaterial: (material: Omit<RawMaterial, 'id'>) => Promise<void>;
+  updateRawMaterial: (id: string, changes: Partial<Omit<RawMaterial, 'id'>>) => Promise<void>;
+  deleteRawMaterial: (id: string) => Promise<void>;
+  recordMaterialMovement: (movement: Omit<RawMaterialMovement, 'id'>) => Promise<{ success: boolean; message?: string }>;
 };
 
 const PosContext = createContext<PosContextValue | null>(null);
-const PRODUCTS_KEY = 'helatte_products';
-const SALES_KEY = 'helatte_sales';
-const FINANCE_KEY = 'helatte_finance';
-const CLIENTS_KEY = 'helatte_clients';
-const CREDITS_KEY = 'helatte_credits';
-const FRIDGES_KEY = 'helatte_fridge_loans';
-const RAW_MATERIALS_KEY = 'helatte_raw_materials';
-const RAW_MATERIAL_MOVEMENTS_KEY = 'helatte_raw_material_movements';
-const WHOLESALE_FOLIO_KEY = 'helatte_wholesale_folio';
 
-function generateId() {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2, 10);
-}
+const formatWholesaleFolio = (folioNumber: number) => `MAY-${String(folioNumber).padStart(6, '0')}`;
 
-const normalizeSales = (storedSales: Sale[]) => {
-  if (!Array.isArray(storedSales)) return [];
+export const PosProvider: React.FC<{ children: React.ReactNode; brandId: string }> = ({ children, brandId }) => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [financeMovements, setFinanceMovements] = useState<FinanceMovement[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [fridgeLoans, setFridgeLoans] = useState<FridgeLoan[]>([]);
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
+  const [rawMaterialMovements, setRawMaterialMovements] = useState<RawMaterialMovement[]>([]);
+  const [wholesaleFolio, setWholesaleFolio] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  return storedSales.map((sale) => ({
-    ...sale,
-    channel: (sale as Sale).channel ?? 'pos',
-    folio: (sale as Sale).folio ?? '',
-    notes: (sale as Sale).notes ?? (sale as Sale & { note?: string }).note ?? undefined,
-  }));
-};
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(() => loadFromStorage(PRODUCTS_KEY, []));
-  const [sales, setSales] = useState<Sale[]>(() => normalizeSales(loadFromStorage(SALES_KEY, [])));
-  const [financeMovements, setFinanceMovements] = useState<FinanceMovement[]>(() => {
-    const stored = loadFromStorage<FinanceMovement[]>(FINANCE_KEY, []);
-    if (!Array.isArray(stored)) return [];
+    const [productsRes, clientsRes, salesRes, saleItemsRes, materialsRes, inventoryRes] = await Promise.all([
+      supabase.from('products').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
+      supabase.from('customers').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
+      supabase.from('sales').select('*').eq('brand_id', brandId).order('created_at', { ascending: false }),
+      supabase.from('sale_items').select('*').eq('brand_id', brandId),
+      supabase.from('raw_materials').select('*').eq('brand_id', brandId).order('name', { ascending: true }),
+      supabase.from('inventory_movements').select('*').eq('brand_id', brandId).order('created_at', { ascending: false }),
+    ]);
 
-    return stored.map((movement) => ({
-      ...movement,
-      source:
-        movement.source === 'venta'
-          ? 'sale'
-          : movement.source === undefined
-            ? 'manual'
-            : movement.source,
+    const firstError =
+      productsRes.error || clientsRes.error || salesRes.error || saleItemsRes.error || materialsRes.error || inventoryRes.error;
+
+    if (firstError) {
+      setError(firstError.message);
+      setLoading(false);
+      return;
+    }
+
+    setProducts((productsRes.data ?? []).map((p) => ({ id: p.id, name: p.name, price: Number(p.price), stock: p.stock })));
+
+    setClients(
+      (clientsRes.data ?? []).map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone ?? '',
+        address: c.address ?? '',
+        active: c.active,
+        notes: c.notes ?? '',
+      })),
+    );
+
+    const itemsBySale = new Map<string, SaleItem[]>();
+    for (const item of saleItemsRes.data ?? []) {
+      const current = itemsBySale.get(item.sale_id) ?? [];
+      current.push({
+        productId: item.product_id,
+        name: item.product_name,
+        price: Number(item.unit_price),
+        quantity: item.quantity,
+      });
+      itemsBySale.set(item.sale_id, current);
+    }
+
+    const mappedSales = (salesRes.data ?? []).map((sale) => ({
+      id: sale.id,
+      items: itemsBySale.get(sale.id) ?? [],
+      total: Number(sale.total_amount),
+      date: sale.created_at,
+      notes: sale.notes ?? undefined,
+      clientId: sale.customer_id ?? undefined,
+      clientName: sale.client_name ?? undefined,
+      channel: sale.channel,
+      folio: sale.folio ?? '',
     }));
-  });
-  const [clients, setClients] = useState<Client[]>(() => {
-    const storedClients = loadFromStorage<Client[]>(CLIENTS_KEY, []);
-    if (!Array.isArray(storedClients)) return [];
 
-    return storedClients.map((client) => ({
-      ...client,
-      phone: client.phone ?? '',
-      address: client.address ?? '',
+    setSales(mappedSales);
+    const financeFromSales = mappedSales.map((sale) => ({
+      id: `sale-${sale.id}`,
+      box: 'grande' as const,
+      kind: 'entrada' as const,
+      amount: sale.total,
+      concept: sale.channel === 'wholesale' ? `Venta Mayoreo ${sale.folio ?? ''}`.trim() : 'Venta POS',
+      date: sale.date,
+      source: sale.channel === 'wholesale' ? 'sale_wholesale' as const : 'sale' as const,
     }));
-  });
-  const [credits, setCredits] = useState<Credit[]>(() => loadFromStorage(CREDITS_KEY, []));
-  const [fridgeLoans, setFridgeLoans] = useState<FridgeLoan[]>(() => loadFromStorage(FRIDGES_KEY, []));
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>(
-    () => loadFromStorage(RAW_MATERIALS_KEY, []),
-  );
-  const [rawMaterialMovements, setRawMaterialMovements] = useState<RawMaterialMovement[]>(
-    () => loadFromStorage(RAW_MATERIAL_MOVEMENTS_KEY, []),
-  );
-  const [wholesaleFolio, setWholesaleFolio] = useState<number>(
-    () => Number(loadFromStorage(WHOLESALE_FOLIO_KEY, 1)) || 1,
-  );
+    setFinanceMovements(financeFromSales);
+
+    setRawMaterials(
+      (materialsRes.data ?? []).map((material) => ({
+        id: material.id,
+        name: material.name,
+        stock: material.stock,
+        minStock: material.min_stock,
+      })),
+    );
+
+    setRawMaterialMovements(
+      (inventoryRes.data ?? [])
+        .filter((movement) => movement.material_id)
+        .map((movement) => ({
+          id: movement.id,
+          materialId: movement.material_id,
+          type: movement.movement_type,
+          amount: movement.quantity,
+          note: movement.note ?? '',
+          date: movement.created_at,
+        })),
+    );
+
+    const maxFolio = mappedSales
+      .filter((sale) => sale.channel === 'wholesale' && sale.folio?.startsWith('MAY-'))
+      .map((sale) => Number(sale.folio?.replace('MAY-', '')))
+      .reduce((acc, current) => (Number.isFinite(current) ? Math.max(acc, current) : acc), 0);
+    setWholesaleFolio(maxFolio + 1);
+
+    setLoading(false);
+  }, [brandId]);
 
   useEffect(() => {
-    const syncFromStorage = () => {
-      setProducts(loadFromStorage(PRODUCTS_KEY, []));
-      setSales(normalizeSales(loadFromStorage(SALES_KEY, [])));
-    };
-
-    syncFromStorage();
-    window.addEventListener('storage', syncFromStorage);
-    return () => window.removeEventListener('storage', syncFromStorage);
-  }, []);
-
-  useEffect(() => {
-    saveToStorage(PRODUCTS_KEY, products);
-  }, [products]);
-
-  useEffect(() => {
-    saveToStorage(SALES_KEY, sales);
-  }, [sales]);
-
-  useEffect(() => {
-    saveToStorage(FINANCE_KEY, financeMovements);
-  }, [financeMovements]);
-
-  useEffect(() => {
-    saveToStorage(CLIENTS_KEY, clients);
-  }, [clients]);
-
-  useEffect(() => {
-    saveToStorage(CREDITS_KEY, credits);
-  }, [credits]);
-
-  useEffect(() => {
-    saveToStorage(FRIDGES_KEY, fridgeLoans);
-  }, [fridgeLoans]);
-
-  useEffect(() => {
-    saveToStorage(RAW_MATERIALS_KEY, rawMaterials);
-  }, [rawMaterials]);
-
-  useEffect(() => {
-    saveToStorage(RAW_MATERIAL_MOVEMENTS_KEY, rawMaterialMovements);
-  }, [rawMaterialMovements]);
-
-  useEffect(() => {
-    saveToStorage(WHOLESALE_FOLIO_KEY, wholesaleFolio);
-  }, [wholesaleFolio]);
-
-  const formatWholesaleFolio = (folioNumber: number) => `MAY-${String(folioNumber).padStart(6, '0')}`;
+    void refreshData();
+  }, [refreshData]);
 
   const nextWholesaleFolio = () => formatWholesaleFolio(wholesaleFolio);
 
-  const addProduct = (product: Omit<Product, 'id'>) => {
-    const safeStock = Math.max(0, product.stock);
-    const newProduct: Product = { ...product, stock: safeStock, id: generateId() };
-    setProducts((prev) => [...prev, newProduct]);
+  const addProduct = async (product: Omit<Product, 'id'>) => {
+    const { error: insertError } = await supabase.from('products').insert({
+      brand_id: brandId,
+      name: product.name.trim(),
+      price: product.price,
+      stock: Math.max(0, product.stock),
+    });
+    if (insertError) throw new Error(insertError.message);
+    await refreshData();
   };
 
-  const updateProduct = (id: string, changes: Partial<Omit<Product, 'id'>>) => {
-    setProducts((prev) =>
-      prev.map((product) => {
-        if (product.id !== id) return product;
-        const nextStock =
-          changes.stock === undefined ? product.stock : Math.max(0, Number.isNaN(changes.stock) ? 0 : changes.stock);
+  const updateProduct = async (id: string, changes: Partial<Omit<Product, 'id'>>) => {
+    const payload: Record<string, unknown> = {};
+    if (changes.name !== undefined) payload.name = changes.name;
+    if (changes.price !== undefined) payload.price = changes.price;
+    if (changes.stock !== undefined) payload.stock = Math.max(0, Number(changes.stock));
 
-        return { ...product, ...changes, stock: nextStock };
-      }),
-    );
+    const { error: updateError } = await supabase.from('products').update(payload).eq('id', id).eq('brand_id', brandId);
+    if (updateError) throw new Error(updateError.message);
+
+    if (changes.stock !== undefined) {
+      await supabase.from('inventory_movements').insert({
+        brand_id: brandId,
+        product_id: id,
+        movement_type: 'adjustment',
+        quantity: Math.abs(Number(changes.stock)),
+        note: 'Ajuste de stock manual',
+      });
+    }
+
+    await refreshData();
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((product) => product.id !== id));
+  const deleteProduct = async (id: string) => {
+    const { error: deleteError } = await supabase.from('products').delete().eq('id', id).eq('brand_id', brandId);
+    if (deleteError) throw new Error(deleteError.message);
+    await refreshData();
   };
 
-  const recordSale = (items: SalePayload) => {
-    if (!items.length) return { success: false, message: 'El carrito está vacío' };
+  const recordSale = async (items: SalePayload) => {
+    if (!items.length) return toResult(false, 'El carrito está vacío');
 
-    const updatedProducts = [...products];
+    const currentProducts = [...products];
     const saleItems: SaleItem[] = [];
     let total = 0;
 
     for (const { productId, quantity } of items) {
-      const productIndex = updatedProducts.findIndex((p) => p.id === productId);
-      if (productIndex === -1) return { success: false, message: 'Producto no encontrado' };
-
-      const product = updatedProducts[productIndex];
-      if (product.stock < quantity) {
-        return { success: false, message: `Stock insuficiente para ${product.name}` };
-      }
-
-      updatedProducts[productIndex] = { ...product, stock: product.stock - quantity };
+      const product = currentProducts.find((p) => p.id === productId);
+      if (!product) return toResult(false, 'Producto no encontrado');
+      if (product.stock < quantity) return toResult(false, `Stock insuficiente para ${product.name}`);
       saleItems.push({ productId, name: product.name, price: product.price, quantity });
       total += product.price * quantity;
     }
 
-    const sale: Sale = {
-      id: generateId(),
-      items: saleItems,
-      total,
-      date: new Date().toISOString(),
-      channel: 'pos',
-      folio: '',
-    };
+    const { data: saleData, error: saleError } = await supabase
+      .from('sales')
+      .insert({ brand_id: brandId, total_amount: total, channel: 'pos' })
+      .select('id')
+      .single();
 
-    setProducts(updatedProducts);
-    setSales((prev) => [...prev, sale]);
-    setFinanceMovements((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        box: 'grande',
-        kind: 'entrada',
-        amount: total,
-        concept: 'Venta POS',
-        date: sale.date,
-        source: 'sale',
-      },
-    ]);
-    return { success: true };
+    if (saleError || !saleData) return toResult(false, saleError?.message ?? 'No se pudo crear la venta');
+
+    const saleItemsPayload = saleItems.map((item) => ({
+      brand_id: brandId,
+      sale_id: saleData.id,
+      product_id: item.productId,
+      product_name: item.name,
+      quantity: item.quantity,
+      unit_price: item.price,
+      line_total: item.price * item.quantity,
+    }));
+
+    const { error: itemsError } = await supabase.from('sale_items').insert(saleItemsPayload);
+    if (itemsError) return toResult(false, itemsError.message);
+
+    for (const item of saleItems) {
+      const product = currentProducts.find((p) => p.id === item.productId);
+      if (!product) continue;
+      await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.productId).eq('brand_id', brandId);
+      await supabase.from('inventory_movements').insert({
+        brand_id: brandId,
+        product_id: item.productId,
+        movement_type: 'sale',
+        quantity: item.quantity,
+        note: 'Salida por venta POS',
+      });
+    }
+
+    await refreshData();
+    return toResult(true);
   };
 
-  const createWholesaleSale = ({ items, notes, clientId, clientName, discount }: WholesalePayload) => {
+  const createWholesaleSale = async ({ items, notes, clientId, clientName, discount }: WholesalePayload) => {
     if (!items.length) return { success: false, message: 'El carrito está vacío' };
 
-    const updatedProducts = [...products];
+    const currentProducts = [...products];
     const saleItems: SaleItem[] = [];
     let total = 0;
 
     for (const { productId, quantity } of items) {
-      const productIndex = updatedProducts.findIndex((p) => p.id === productId);
-      if (productIndex === -1) return { success: false, message: 'Producto no encontrado' };
-
-      const product = updatedProducts[productIndex];
-      if (product.stock < quantity) {
-        return { success: false, message: `Stock insuficiente para ${product.name}` };
-      }
-
-      updatedProducts[productIndex] = { ...product, stock: product.stock - quantity };
+      const product = currentProducts.find((p) => p.id === productId);
+      if (!product) return { success: false, message: 'Producto no encontrado' };
+      if (product.stock < quantity) return { success: false, message: `Stock insuficiente para ${product.name}` };
       saleItems.push({ productId, name: product.name, price: product.price, quantity });
       total += product.price * quantity;
     }
 
     if (discount && discount.value > 0) {
-      const discountAmount =
-        discount.type === 'percent' ? Math.min(discount.value, 100) * (total / 100) : discount.value;
+      const discountAmount = discount.type === 'percent' ? Math.min(discount.value, 100) * (total / 100) : discount.value;
       total = Math.max(total - discountAmount, 0);
     }
 
-    const date = new Date().toISOString();
     const folio = formatWholesaleFolio(wholesaleFolio);
 
+    const { data: saleData, error: saleError } = await supabase
+      .from('sales')
+      .insert({
+        brand_id: brandId,
+        total_amount: total,
+        channel: 'wholesale',
+        notes: notes?.trim() || null,
+        customer_id: clientId || null,
+        client_name: clientName?.trim() || null,
+        folio,
+      })
+      .select('id, created_at')
+      .single();
+
+    if (saleError || !saleData) return { success: false, message: saleError?.message ?? 'No se pudo crear la venta' };
+
+    const saleItemsPayload = saleItems.map((item) => ({
+      brand_id: brandId,
+      sale_id: saleData.id,
+      product_id: item.productId,
+      product_name: item.name,
+      quantity: item.quantity,
+      unit_price: item.price,
+      line_total: item.price * item.quantity,
+    }));
+
+    const { error: itemsError } = await supabase.from('sale_items').insert(saleItemsPayload);
+    if (itemsError) return { success: false, message: itemsError.message };
+
+    for (const item of saleItems) {
+      const product = currentProducts.find((p) => p.id === item.productId);
+      if (!product) continue;
+      await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.productId).eq('brand_id', brandId);
+      await supabase.from('inventory_movements').insert({
+        brand_id: brandId,
+        product_id: item.productId,
+        movement_type: 'sale',
+        quantity: item.quantity,
+        note: `Salida por mayoreo ${folio}`,
+      });
+    }
+
     const sale: Sale = {
-      id: generateId(),
+      id: saleData.id,
       items: saleItems,
       total,
-      date,
-      notes: notes?.trim() ? notes.trim() : undefined,
+      date: saleData.created_at,
+      notes: notes?.trim() || undefined,
       clientId,
-      clientName: clientName?.trim() ? clientName.trim() : undefined,
+      clientName,
       channel: 'wholesale',
       folio,
     };
 
-    setProducts(updatedProducts);
-    setSales((prev) => [...prev, sale]);
-    setFinanceMovements((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        box: 'grande',
-        kind: 'entrada',
-        amount: total,
-        concept: `Venta Mayoreo ${folio}`,
-        date,
-        source: 'sale_wholesale',
-      },
-    ]);
-    setWholesaleFolio((prev) => prev + 1);
+    await refreshData();
 
     return { success: true, sale };
   };
 
-  const addFinanceMovement = (movement: Omit<FinanceMovement, 'id'>) => {
-    setFinanceMovements((prev) => [
-      ...prev,
-      { ...movement, id: generateId(), source: movement.source ?? 'manual' },
-    ]);
+  const addFinanceMovement = async () => {};
+  const deleteCashMovement = async () => {};
+
+  const addClient = async (client: Omit<Client, 'id'>) => {
+    const { error: insertError } = await supabase.from('customers').insert({
+      brand_id: brandId,
+      name: client.name.trim(),
+      phone: client.phone,
+      address: client.address,
+      active: client.active,
+      notes: client.notes,
+    });
+    if (insertError) throw new Error(insertError.message);
+    await refreshData();
   };
 
-  const deleteCashMovement = (box: FinanceMovement['box'], movementId: string) => {
-    setFinanceMovements((prev) =>
-      prev.filter((movement) => movement.box !== box || movement.id !== movementId),
-    );
+  const updateClient = async (id: string, changes: Partial<Omit<Client, 'id'>>) => {
+    const { error: updateError } = await supabase.from('customers').update(changes).eq('id', id).eq('brand_id', brandId);
+    if (updateError) throw new Error(updateError.message);
+    await refreshData();
   };
 
-  const addClient = (client: Omit<Client, 'id'>) => {
-    setClients((prev) => [...prev, { ...client, id: generateId() }]);
-  };
-
-  const updateClient = (id: string, changes: Partial<Omit<Client, 'id'>>) => {
-    setClients((prev) => prev.map((client) => (client.id === id ? { ...client, ...changes } : client)));
-  };
-
-  const deleteClient = (id: string) => {
-    setClients((prev) => prev.filter((client) => client.id !== id));
+  const deleteClient = async (id: string) => {
+    const { error: deleteError } = await supabase.from('customers').delete().eq('id', id).eq('brand_id', brandId);
+    if (deleteError) throw new Error(deleteError.message);
+    await refreshData();
   };
 
   const addCredit = (credit: Omit<Credit, 'id' | 'payments' | 'status'>) => {
-    const payload: Credit = { ...credit, id: generateId(), status: 'pendiente', payments: [] };
+    const payload: Credit = {
+      ...credit,
+      id: crypto.randomUUID(),
+      status: 'pendiente',
+      payments: [],
+    };
     setCredits((prev) => [...prev, payload]);
   };
 
@@ -416,7 +479,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((credit) => {
         if (credit.id !== creditId) return credit;
 
-        const updatedPayments = [...credit.payments, { ...payment, id: generateId() }];
+        const updatedPayments = [...credit.payments, { ...payment, id: crypto.randomUUID() }];
         const paid = updatedPayments.reduce((acc, current) => acc + current.amount, 0);
         const remaining = credit.amount - paid;
         const nextStatus = remaining <= 0 ? 'pagado' : credit.status;
@@ -426,7 +489,7 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addFridgeLoan = (loan: Omit<FridgeLoan, 'id' | 'status' | 'returnDate'>) => {
-    setFridgeLoans((prev) => [...prev, { ...loan, id: generateId(), status: 'entregado' }]);
+    setFridgeLoans((prev) => [...prev, { ...loan, id: crypto.randomUUID(), status: 'entregado' }]);
   };
 
   const markFridgeReturned = (loanId: string) => {
@@ -437,31 +500,57 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const addRawMaterial = (material: Omit<RawMaterial, 'id'>) => {
-    setRawMaterials((prev) => [...prev, { ...material, id: generateId() }]);
+  const addRawMaterial = async (material: Omit<RawMaterial, 'id'>) => {
+    const { error: insertError } = await supabase.from('raw_materials').insert({
+      brand_id: brandId,
+      name: material.name,
+      stock: material.stock,
+      min_stock: material.minStock,
+    });
+    if (insertError) throw new Error(insertError.message);
+    await refreshData();
   };
 
-  const updateRawMaterial = (id: string, changes: Partial<Omit<RawMaterial, 'id'>>) => {
-    setRawMaterials((prev) => prev.map((item) => (item.id === id ? { ...item, ...changes } : item)));
+  const updateRawMaterial = async (id: string, changes: Partial<Omit<RawMaterial, 'id'>>) => {
+    const payload: Record<string, unknown> = {};
+    if (changes.name !== undefined) payload.name = changes.name;
+    if (changes.stock !== undefined) payload.stock = changes.stock;
+    if (changes.minStock !== undefined) payload.min_stock = changes.minStock;
+
+    const { error: updateError } = await supabase.from('raw_materials').update(payload).eq('id', id).eq('brand_id', brandId);
+    if (updateError) throw new Error(updateError.message);
+    await refreshData();
   };
 
-  const deleteRawMaterial = (id: string) => {
-    setRawMaterials((prev) => prev.filter((item) => item.id !== id));
-    setRawMaterialMovements((prev) => prev.filter((movement) => movement.materialId !== id));
+  const deleteRawMaterial = async (id: string) => {
+    const { error: deleteError } = await supabase.from('raw_materials').delete().eq('id', id).eq('brand_id', brandId);
+    if (deleteError) throw new Error(deleteError.message);
+    await refreshData();
   };
 
-  const recordMaterialMovement = (movement: Omit<RawMaterialMovement, 'id'>) => {
+  const recordMaterialMovement = async (movement: Omit<RawMaterialMovement, 'id'>) => {
     const material = rawMaterials.find((item) => item.id === movement.materialId);
-    if (!material) return { success: false, message: 'Materia prima no encontrada' };
+    if (!material) return toResult(false, 'Materia prima no encontrada');
 
     const delta = movement.type === 'entrada' ? movement.amount : -movement.amount;
     const newStock = material.stock + delta;
 
-    if (newStock < 0) return { success: false, message: 'No puedes tener stock negativo' };
+    if (newStock < 0) return toResult(false, 'No puedes tener stock negativo');
 
-    updateRawMaterial(material.id, { stock: newStock });
-    setRawMaterialMovements((prev) => [...prev, { ...movement, id: generateId() }]);
-    return { success: true };
+    await supabase.from('raw_materials').update({ stock: newStock }).eq('id', movement.materialId).eq('brand_id', brandId);
+
+    const { error: movementError } = await supabase.from('inventory_movements').insert({
+      brand_id: brandId,
+      material_id: movement.materialId,
+      movement_type: movement.type,
+      quantity: movement.amount,
+      note: movement.note,
+      created_at: movement.date,
+    });
+    if (movementError) return toResult(false, movementError.message);
+
+    await refreshData();
+    return toResult(true);
   };
 
   const value = useMemo(
@@ -474,7 +563,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       fridgeLoans,
       rawMaterials,
       rawMaterialMovements,
+      loading,
+      error,
       nextWholesaleFolio,
+      refreshData,
       addProduct,
       updateProduct,
       deleteProduct,
@@ -504,7 +596,10 @@ export const PosProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       fridgeLoans,
       rawMaterials,
       rawMaterialMovements,
+      loading,
+      error,
       wholesaleFolio,
+      refreshData,
     ],
   );
 

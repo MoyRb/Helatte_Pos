@@ -1,8 +1,0 @@
-* text=auto
-
-# Prisma schema - mantener LF estable
-prisma/schema.prisma text eol=lf
-
-# Opcional: scripts/configs
-*.sh text eol=lf
-*.ps1 text eol=crlf

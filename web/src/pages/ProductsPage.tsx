@@ -12,14 +12,14 @@ export const ProductsPage: React.FC = () => {
 
   const sortedProducts = useMemo(() => [...products].sort((a, b) => a.name.localeCompare(b.name)), [products]);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.name.trim()) return;
 
     if (editingId) {
-      updateProduct(editingId, form);
+      await updateProduct(editingId, form);
     } else {
-      addProduct({ ...form, price: Number(form.price), stock: Number(form.stock) });
+      await addProduct({ ...form, price: Number(form.price), stock: Number(form.stock) });
     }
 
     setForm(emptyProduct);
@@ -46,7 +46,7 @@ export const ProductsPage: React.FC = () => {
     changeStockValue(productId, nextValue);
   };
 
-  const saveStock = (product: Product) => {
+  const saveStock = async (product: Product) => {
     const newValue = stockEdits[product.id];
     if (newValue === undefined || newValue === product.stock) return;
 
@@ -55,7 +55,7 @@ export const ProductsPage: React.FC = () => {
     );
     if (!confirmed) return;
 
-    updateProduct(product.id, { stock: newValue });
+    await updateProduct(product.id, { stock: newValue });
     setStockEdits((prev) => {
       const updated = { ...prev };
       delete updated[product.id];
@@ -184,7 +184,7 @@ export const ProductsPage: React.FC = () => {
                           <PencilSquareIcon className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => deleteProduct(product.id)}
+                          onClick={() => void deleteProduct(product.id)}
                           className="p-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25"
                           aria-label="Eliminar"
                         >

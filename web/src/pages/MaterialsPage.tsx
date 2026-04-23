@@ -33,18 +33,18 @@ export const MaterialsPage: React.FC = () => {
     [rawMaterialMovements],
   );
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.name.trim()) return;
 
-    addRawMaterial({ name: form.name, stock: Number(form.stock), minStock: Number(form.minStock) });
+    await addRawMaterial({ name: form.name, stock: Number(form.stock), minStock: Number(form.minStock) });
     setForm({ name: '', stock: 0, minStock: 0 });
   };
 
-  const recordMovement = (materialId: string) => {
+  const recordMovement = async (materialId: string) => {
     const current = movementForms[materialId] ?? { amount: 0, type: 'entrada' as const, note: '', date: today };
     if (current.amount <= 0) return;
-    const result = recordMaterialMovement({
+    const result = await recordMaterialMovement({
       materialId,
       type: current.type,
       amount: Number(current.amount),
@@ -137,7 +137,7 @@ export const MaterialsPage: React.FC = () => {
                       <button
                         onClick={() => {
                           const confirmed = window.confirm(`¿Eliminar ${material.name}? Se borrarán sus movimientos.`);
-                          if (confirmed) deleteRawMaterial(material.id);
+                          if (confirmed) void deleteRawMaterial(material.id);
                         }}
                         className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25 text-xs font-semibold"
                       >
@@ -207,7 +207,7 @@ export const MaterialsPage: React.FC = () => {
                       />
                     </label>
                     <button
-                      onClick={() => recordMovement(material.id)}
+                      onClick={() => void recordMovement(material.id)}
                       className="btn-primary md:col-span-2"
                       disabled={movementForm.amount <= 0}
                     >

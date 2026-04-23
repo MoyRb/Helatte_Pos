@@ -84,7 +84,7 @@ export const PosPage: React.FC = () => {
 
   const total = cartItems.reduce((acc, item) => acc + item.subtotal, 0);
 
-  const confirmSale = () => {
+  const confirmSale = async () => {
     if (!cartItems.length) {
       showAlert({ type: 'error', text: 'Agrega productos al carrito antes de confirmar' });
       return;
@@ -97,7 +97,7 @@ export const PosPage: React.FC = () => {
     }
 
     const payload = cartItems.map(({ productId, quantity }) => ({ productId, quantity }));
-    const result = recordSale(payload);
+    const result = await recordSale(payload);
     if (result.success) {
       showAlert({ type: 'success', text: 'Venta registrada correctamente' });
       setCart([]);
@@ -200,7 +200,7 @@ export const PosPage: React.FC = () => {
           </div>
           <button
             className="btn-primary flex items-center gap-2"
-            onClick={confirmSale}
+            onClick={() => void confirmSale()}
             disabled={!cartItems.length}
           >
             <CheckCircleIcon className="h-5 w-5" /> Confirmar venta
