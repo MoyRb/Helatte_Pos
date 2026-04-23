@@ -91,7 +91,7 @@ const AppContent: React.FC<{ membership: BrandMembership; memberships: BrandMemb
     pos: <PosPage />,
     wholesale: <WholesalePage />,
     products: <ProductsPage />,
-    production: <ProductionPage brandName={membership.brands?.name ?? 'Marca'} />,
+    production: <ProductionPage brandId={membership.brand_id} brandName={membership.brands?.name ?? 'Marca'} />,
     finances: <FinancePage />,
     clients: <ClientsPage />,
     credits: <CreditsPage />,
