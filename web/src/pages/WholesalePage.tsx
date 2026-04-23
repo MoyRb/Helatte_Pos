@@ -115,7 +115,7 @@ export const WholesalePage: React.FC = () => {
      setDiscountType('amount');
    };
  
-   const confirmSale = () => {
+   const confirmSale = async () => {
      if (!cartItems.length) {
        showAlert({ type: 'error', text: 'Agrega productos antes de confirmar' });
        return;
@@ -129,7 +129,7 @@ export const WholesalePage: React.FC = () => {
  
      const saleClientName = selectedClient ? '' : customClient.trim();
  
-     const result = createWholesaleSale({
+     const result = await createWholesaleSale({
        items: cartItems.map(({ productId, quantity }) => ({ productId, quantity })),
        notes,
        clientId: selectedClient || undefined,
@@ -369,7 +369,7 @@ export const WholesalePage: React.FC = () => {
                  </div>
                  <button
                    className="btn-primary flex items-center gap-2"
-                   onClick={confirmSale}
+                   onClick={() => void confirmSale()}
                    disabled={!cartItems.length || cartHasStockIssue}
                  >
                    <CheckCircleIcon className="h-5 w-5" /> Confirmar venta

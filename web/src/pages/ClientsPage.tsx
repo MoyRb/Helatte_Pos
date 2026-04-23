@@ -42,14 +42,14 @@ export const ClientsPage: React.FC = () => {
     [clientLoans, showActiveOnly],
   );
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.name.trim()) return;
 
     if (editingId) {
-      updateClient(editingId, form);
+      await updateClient(editingId, form);
     } else {
-      addClient(form);
+      await addClient(form);
     }
 
     setForm(emptyClient);
@@ -184,7 +184,7 @@ export const ClientsPage: React.FC = () => {
                         Editar
                       </button>
                       <button
-                        onClick={() => deleteClient(client.id)}
+                        onClick={() => void deleteClient(client.id)}
                         className="px-3 py-2 rounded-lg bg-secondarySoft text-coffee hover:bg-sky/25 text-xs font-semibold"
                       >
                         Eliminar
