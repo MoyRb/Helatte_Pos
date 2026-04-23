@@ -9,34 +9,43 @@ type MovementForm = { concept: string; amount: number; kind: 'entrada' | 'salida
 const emptyForm: MovementForm = { concept: '', amount: 0, kind: 'entrada', date: today };
 
 export const FinancePage: React.FC = () => {
-  const { financeMovements, addFinanceMovement, deleteCashMovement } = usePos();
-  const [forms, setForms] = useState<Record<'chica' | 'grande', MovementForm>>({
-    chica: emptyForm,
-    grande: emptyForm,
-  });
+  const { cashBoxes, financeMovements, addFinanceMovement, deleteCashMovement } = usePos();
+  const [forms, setForms] = useState<Record<string, MovementForm>>({});
   const [movementToDelete, setMovementToDelete] = useState<FinanceMovement | null>(null);
 
-  const balances = useMemo(() => {
-    return ['chica', 'grande'].reduce(
-      (acc, box) => ({
-        ...acc,
-        [box]: financeMovements
-          .filter((movement) => movement.box === box)
-          .reduce((total, movement) =>
-            movement.kind === 'entrada' ? total + movement.amount : total - movement.amount,
-          0),
-      }),
-      { chica: 0, grande: 0 } as Record<'chica' | 'grande', number>,
-    );
-  }, [financeMovements]);
+  const activeBoxes = useMemo(() => cashBoxes.filter((box) => box.isActive), [cashBoxes]);
 
-  const registerMovement = (box: 'chica' | 'grande') => (event: React.FormEvent) => {
+  const balances = useMemo(() => {
+    return activeBoxes.reduce<Record<string, number>>((acc, box) => {
+      acc[box.id] = financeMovements
+        .filter((movement) => movement.cashBoxId === box.id)
+        .reduce(
+          (total, movement) =>
+            movement.kind === 'entrada' ? total + movement.amount : total - movement.amount,
+          0,
+        );
+      return acc;
+    }, {});
+  }, [activeBoxes, financeMovements]);
+
+  const registerMovement = (boxId: string) => async (event: React.FormEvent) => {
     event.preventDefault();
-    const form = forms[box];
+    const targetBox = activeBoxes.find((item) => item.id === boxId);
+    if (!targetBox) return;
+
+    const form = forms[boxId] ?? emptyForm;
     if (!form.concept.trim() || form.amount <= 0) return;
 
-    addFinanceMovement({ ...form, box, source: 'manual', amount: Number(form.amount) });
-    setForms((prev) => ({ ...prev, [box]: { ...emptyForm, date: form.date } }));
+    await addFinanceMovement({
+      ...form,
+      box: targetBox.name,
+      cashBoxId: targetBox.id,
+      cashBoxName: targetBox.name,
+      source: 'manual',
+      amount: Number(form.amount),
+    });
+
+    setForms((prev) => ({ ...prev, [boxId]: { ...emptyForm, date: form.date } }));
   };
 
   const formatDate = (iso: string) => {
@@ -44,50 +53,43 @@ export const FinancePage: React.FC = () => {
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  const recentMovements = (box: 'chica' | 'grande') =>
+  const recentMovements = (boxId: string) =>
     [...financeMovements]
-      .filter((movement) => movement.box === box)
+      .filter((movement) => movement.cashBoxId === boxId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 6);
 
   const confirmDeletion = async () => {
     if (!movementToDelete) return;
-    deleteCashMovement(movementToDelete.box, movementToDelete.id);
+    await deleteCashMovement(movementToDelete.id);
     setMovementToDelete(null);
   };
 
   return (
     <>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {[{ key: 'chica', title: 'Caja chica' }, { key: 'grande', title: 'Caja grande' }].map(
-          ({ key, title }) => {
-            const boxKey = key as 'chica' | 'grande';
-          const form = forms[boxKey];
+        {activeBoxes.map((box) => {
+          const form = forms[box.id] ?? emptyForm;
+
           return (
-            <div key={key} className="card p-6 space-y-4">
+            <div key={box.id} className="card p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-coffee/70">{title}</p>
-                  <p className="text-3xl font-bold">${balances[boxKey].toFixed(2)}</p>
-                  <p className="text-xs text-coffee/60">
-                    {boxKey === 'chica'
-                      ? 'Entradas y salidas manuales'
-                      : 'Ventas automáticas + movimientos manuales'}
-                  </p>
+                  <p className="text-sm text-coffee/70">{box.name}</p>
+                  <p className="text-3xl font-bold">${(balances[box.id] ?? 0).toFixed(2)}</p>
+                  <p className="text-xs text-coffee/60">{box.description || 'Movimientos de caja'}</p>
                 </div>
-                <span className="badge-info">
-                  {recentMovements(boxKey).length} movimientos recientes
-                </span>
+                <span className="badge-info">{recentMovements(box.id).length} movimientos recientes</span>
               </div>
 
-              <form onSubmit={registerMovement(boxKey)} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <form onSubmit={registerMovement(box.id)} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                 <label className="flex flex-col gap-1 text-sm font-medium">
                   Concepto
                   <input
                     className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
                     value={form.concept}
                     onChange={(e) =>
-                      setForms((prev) => ({ ...prev, [boxKey]: { ...form, concept: e.target.value } }))
+                      setForms((prev) => ({ ...prev, [box.id]: { ...form, concept: e.target.value } }))
                     }
                     required
                   />
@@ -101,7 +103,7 @@ export const FinancePage: React.FC = () => {
                     className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
                     value={form.amount}
                     onChange={(e) =>
-                      setForms((prev) => ({ ...prev, [boxKey]: { ...form, amount: Number(e.target.value) } }))
+                      setForms((prev) => ({ ...prev, [box.id]: { ...form, amount: Number(e.target.value) } }))
                     }
                     required
                   />
@@ -112,7 +114,7 @@ export const FinancePage: React.FC = () => {
                     type="date"
                     className="border border-borderSoft rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky/30"
                     value={form.date}
-                    onChange={(e) => setForms((prev) => ({ ...prev, [boxKey]: { ...form, date: e.target.value } }))}
+                    onChange={(e) => setForms((prev) => ({ ...prev, [box.id]: { ...form, date: e.target.value } }))}
                     required
                   />
                 </label>
@@ -123,11 +125,11 @@ export const FinancePage: React.FC = () => {
                       <label key={type} className="flex items-center gap-2 text-sm font-medium">
                         <input
                           type="radio"
-                          name={`${boxKey}-type`}
+                          name={`${box.id}-type`}
                           value={type}
                           checked={form.kind === type}
                           onChange={() =>
-                            setForms((prev) => ({ ...prev, [boxKey]: { ...form, kind: type as MovementForm['kind'] } }))
+                            setForms((prev) => ({ ...prev, [box.id]: { ...form, kind: type as MovementForm['kind'] } }))
                           }
                         />
                         {type === 'entrada' ? 'Entrada' : 'Salida'}
@@ -140,8 +142,8 @@ export const FinancePage: React.FC = () => {
 
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-coffee">Últimos movimientos</h3>
-                {recentMovements(boxKey).map((movement) => {
-                  const isSaleMovement = movement.source === 'sale' || movement.source === 'venta';
+                {recentMovements(box.id).map((movement) => {
+                  const isSaleMovement = movement.source === 'sale' || movement.source === 'venta' || movement.source === 'sale_wholesale';
 
                   return (
                     <div
@@ -185,15 +187,19 @@ export const FinancePage: React.FC = () => {
                     </div>
                   );
                 })}
-                {!recentMovements(boxKey).length && (
+                {!recentMovements(box.id).length && (
                   <p className="text-sm text-coffee/70">Aún no hay movimientos en esta caja.</p>
                 )}
               </div>
             </div>
           );
-        },
-      )}
+        })}
       </div>
+      {!activeBoxes.length && (
+        <div className="card p-6 mt-4">
+          <p className="text-sm text-coffee/70">No hay cajas activas para esta marca.</p>
+        </div>
+      )}
       {movementToDelete && (
         <ConfirmPinModal
           movement={movementToDelete}

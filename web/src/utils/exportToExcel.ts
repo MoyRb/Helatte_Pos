@@ -124,7 +124,7 @@ export function exportPosDataToExcel(data: ExportPayload) {
   appendSheet(workbook, materialsRows, 'MateriasPrimas', ['nombre', 'unidad', 'stock', 'minimo']);
 
   const cashSmallRows: SheetRow[] = data.financeMovements
-    .filter((movement) => movement.box === 'chica')
+    .filter((movement) => movement.cashBoxName.toLowerCase() === 'caja chica')
     .map((movement) => ({
       tipo: movement.kind,
       monto: movement.amount,
@@ -134,7 +134,7 @@ export function exportPosDataToExcel(data: ExportPayload) {
   appendSheet(workbook, cashSmallRows, 'MovimientosCajaChica', ['tipo', 'monto', 'concepto', 'fecha']);
 
   const cashBigRows: SheetRow[] = data.financeMovements
-    .filter((movement) => movement.box === 'grande')
+    .filter((movement) => movement.cashBoxName.toLowerCase() === 'caja grande')
     .map((movement) => ({
       tipo: movement.kind,
       monto: movement.amount,
